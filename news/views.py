@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import html
 import requests
 from datetime import date
 from urllib.parse import urlparse
@@ -12,34 +13,31 @@ from news.models import Headline, Malayalam_Headline, Search, Users
 
 requests.packages.urllib3.disable_warnings()
 
+THE_HINDU_BASE = "https://www.thehindu.com"
+
+
 # -------------------------------------------------------------------
 # Helper functions
 # -------------------------------------------------------------------
 
 def _get_session():
-    """Return a requests session with a fake User-Agent."""
+    """Return a requests session with a realistic User-Agent."""
     session = requests.Session()
     session.headers = {
-        "User-Agent": "Googlebot/2.1 (+http://www.google.com/bot.html)"
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
     }
     return session
-
-
-def _clean_url(url):
-    """Ensure URL is absolute and safe."""
-    if not url:
-        return ""
-    if url.startswith("//"):
-        return "https:" + url
-    if url.startswith("/"):
-        return "https://indianexpress.com" + url
-    return url
 
 
 def _clean_malayalam_url(url):
     """Ensure URL is absolute for Malayalam IE site."""
     if not url:
         return ""
+    url = url.strip()
     if url.startswith("//"):
         return "https:" + url
     if url.startswith("/"):
@@ -48,95 +46,144 @@ def _clean_malayalam_url(url):
 
 
 # -------------------------------------------------------------------
-# ENGLISH: Main cities scraper (home page)
+# ENGLISH via THE HINDU RSS
+# -------------------------------------------------------------------
+# Category mapping in Headline:
+#   language = 1 (English)
+#   category:
+#       1 = News (main /news/)
+#       2 = India / National
+#       3 = Movies / Entertainment
+#       4 = Technology
+#       5 = Sports
+# -------------------------------------------------------------------
+
+def _scrape_thehindu_rss(feed_url, language, category_id):
+    """
+    Scrape a The Hindu RSS feed and save items into Headline.
+
+    feed_url: The Hindu RSS URL (e.g. https://www.thehindu.com/news/national/?service=rss)
+    language: 1 = English
+    category_id: internal numeric category in Headline model
+    """
+    session = _get_session()
+    try:
+        response = session.get(feed_url, timeout=10, verify=False)
+    except Exception as e:
+        print(f"The Hindu RSS request failed for {feed_url}: {e}")
+        return
+
+    print("The Hindu RSS status:", response.status_code, "URL:", feed_url)
+    if response.status_code != 200:
+        return
+
+    # Parse RSS XML
+    soup = BSoup(response.content, "xml")
+    items = soup.find_all("item")
+    print(f"The Hindu RSS: {feed_url} -> {len(items)} items")
+
+    today = date.today()
+
+    for item in items:
+        # ----- Title -----
+        title_tag = item.find("title")
+        title = title_tag.get_text(strip=True) if title_tag else ""
+        if not title:
+            continue
+
+        # ----- Link -----
+        link_tag = item.find("link")
+        link = link_tag.get_text(strip=True) if link_tag else ""
+        if not link:
+            continue
+
+        # ----- Description / Summary -----
+        desc_tag = item.find("description")
+        description_html = desc_tag.get_text() if desc_tag else ""
+        # Decode HTML entities and strip tags to plain text
+        description_html = html.unescape(description_html)
+        content_text = BSoup(description_html, "html.parser").get_text(" ", strip=True)
+
+        # ----- Image (media:content or enclosure) -----
+        image_src = None
+
+        media_tag = item.find("media:content")
+        if media_tag and media_tag.get("url"):
+            image_src = media_tag["url"]
+
+        if not image_src:
+            enclosure = item.find("enclosure")
+            if enclosure and enclosure.get("url"):
+                image_src = enclosure["url"]
+
+        print("TH RSS Title:", title)
+        print("TH RSS Link :", link)
+        print("TH RSS Image:", image_src)
+
+        # Avoid duplicates for today
+        exists = Headline.objects.filter(
+            title=title,
+            language=language,
+            category=category_id,
+            date=today,
+        ).exists()
+        if exists:
+            continue
+
+        new_headline = Headline()
+        new_headline.title = title
+        new_headline.url = link
+        new_headline.language = language
+        new_headline.category = category_id
+        new_headline.image = image_src
+        new_headline.content = content_text
+        new_headline.date = today
+        new_headline.save()
+
+
+# -------------------------------------------------------------------
+# ENGLISH: Main scraper (Home/News) using The Hindu News RSS
 # -------------------------------------------------------------------
 
 def scrape(request):
     """
-    Scrape English 'cities' news from Indian Express.
+    Scrape English 'main/home' news using The Hindu News RSS as category 1.
 
     Logic:
-    - If we already have headlines for *today*, just show the list.
-    - Otherwise, scrape English cities, then Malayalam (IE Malayalam),
-      then the English categories (India, Tech, Sports, Movie).
+    - If we already have headlines for *today* with language=1 and category=1,
+      just show the list.
+    - Otherwise:
+        - Scrape The Hindu News RSS as category 1 (News/Trending)
+        - Then scrape Malayalam IE front page
+        - Then chain English categories (India, Tech, Sports, Movies).
     """
     date_english = date.today()
 
     headline_existing = Headline.objects.all()
-    check_date = Headline.objects.filter(date=date_english, language=1, category=1).exists()
+    check_date = Headline.objects.filter(
+        date=date_english, language=1, category=1
+    ).exists()
     print("headline_existing:", bool(headline_existing))
     print("check_date:", check_date)
 
-    def fetch_english_news():
-        session = _get_session()
-        url = "https://indianexpress.com/section/cities/"
-        response = session.get(url, verify=False)
-        soup = BSoup(response.content, "html.parser")
-        return soup.find_all("div", {"class": "articles"})
-
-    def save_english_news(news_blocks):
-        for article in news_blocks:
-            links = article.find_all("a")
-            if not links:
-                continue
-
-            main = links[0]
-            link = _clean_url(main.get("href", ""))
-            print("EN cities link:", link)
-
-            # Robust image handling
-            image_src = None
-            try:
-                img_tag = article.find("img")
-                if img_tag is not None:
-                    image_src = (
-                        img_tag.get("data-lazy-src")
-                        or img_tag.get("data-src")
-                        or img_tag.get("data-srcset")
-                        or img_tag.get("src")
-                    )
-                if image_src:
-                    image_src = _clean_url(image_src)
-                print("EN cities image_src:", image_src)
-            except Exception as e:
-                print("EN cities image error:", e)
-                image_src = None
-
-            title_tag = article.find("h2")
-            title = title_tag.get_text(strip=True) if title_tag else ""
-            print("EN cities title:", title)
-
-            content_tag = article.find("p")
-            content_text = content_tag.get_text(strip=True) if content_tag else ""
-
-            new_headline = Headline()
-            new_headline.title = title
-            new_headline.url = link
-            new_headline.language = 1  # English
-            new_headline.category = 1  # Cities
-            new_headline.image = image_src
-            new_headline.content = content_text
-            new_headline.date = date_english
-            new_headline.save()
-
-    # ---------------- main logic ----------------
-
     if headline_existing and check_date:
-        # Already have today's English cities headlines
-        print("DB not empty and today's EN cities data exists")
+        print("DB not empty and today's EN main data exists")
         return news_list(request)
 
-    # Else: need fresh data
-    print("Scraping fresh English cities + Malayalam + EN categories")
-    news_blocks = fetch_english_news()
-    save_english_news(news_blocks)
+    print("Scraping fresh EN The Hindu RSS + Malayalam + EN categories")
 
-    # Now scrape Malayalam (Indian Express Malayalam) and then categories
+    # Category 1: main /news/ (you can label this 'News' or 'Trending' in templates)
+    _scrape_thehindu_rss(
+        feed_url="https://www.thehindu.com/news/?service=rss",
+        language=1,
+        category_id=1,
+    )
+
     return scrape_malayalam(request)
 
 
 # -------------------------------------------------------------------
-# MALAYALAM: Indian Express Malayalam
+# MALAYALAM: Indian Express Malayalam (unchanged)
 # -------------------------------------------------------------------
 
 def _infer_malayalam_category_from_url(url):
@@ -169,17 +216,12 @@ def _infer_malayalam_category_from_url(url):
 def _scrape_ie_malayalam_frontpage():
     """
     Scrape Malayalam headlines from https://malayalam.indianexpress.com/
-    We get:
-      - headline text from <h2> / <h3> tags
-      - link from inner <a>
-      - image using nearest previous <img> tag
     """
     session = _get_session()
     url = "https://malayalam.indianexpress.com/"
     response = session.get(url, verify=False)
     soup = BSoup(response.content, "html.parser")
 
-    # collect headlines from h2 and h3 (IE Malayalam uses these for story cards)
     headline_tags = soup.find_all(["h2", "h3"])
     seen_urls = set()
 
@@ -197,7 +239,6 @@ def _scrape_ie_malayalam_frontpage():
         if not title:
             continue
 
-        # Try to find a nearby image (previous in DOM)
         img_tag = h_tag.find_previous("img")
         image_src = None
         if img_tag is not None:
@@ -221,15 +262,15 @@ def _scrape_ie_malayalam_frontpage():
         new_headline.language = 2  # Malayalam
         new_headline.category = category
         new_headline.image = image_src
-        new_headline.content = ""  # IE Malayalam cards often have no short excerpt
+        new_headline.content = ""
+        new_headline.date = date.today()
         new_headline.save()
 
 
 def scrape_malayalam(request):
     """
-    Entry point to Malayalam scraping chain.
-    Uses Indian Express Malayalam instead of Manorama.
-    After Malayalam, continue with English India/Tech/Sports/Movie scrapers.
+    Entry point to Malayalam scraping chain (IE Malayalam),
+    then continue to English sub-categories from The Hindu.
     """
     print("Scraping IE Malayalam frontpage...")
     _scrape_ie_malayalam_frontpage()
@@ -237,91 +278,57 @@ def scrape_malayalam(request):
 
 
 # -------------------------------------------------------------------
-# ENGLISH: category scrapers (India, Tech, Sports, Movie)
+# ENGLISH: category scrapers via THE HINDU RSS
 # -------------------------------------------------------------------
 
-def _scrape_indianexpress_block(url, language, category):
-    """
-    Generic helper for Indian Express 'articles' blocks.
-    Now uses robust image extraction (not only .jpg regex).
-    """
-    session = _get_session()
-    response = session.get(url, verify=False)
-    soup = BSoup(response.content, "html.parser")
-
-    news_blocks = soup.find_all("div", {"class": "articles"})
-    for article in news_blocks:
-        links = article.find_all("a")
-        if not links:
-            continue
-
-        main = links[0]
-        link = _clean_url(main.get("href", ""))
-        print("EN cat link:", link)
-
-        # More robust image logic
-        image_src = None
-        img_tag = article.find("img")
-        if img_tag is not None:
-            image_src = (
-                img_tag.get("data-lazy-src")
-                or img_tag.get("data-src")
-                or img_tag.get("data-srcset")
-                or img_tag.get("src")
-            )
-        if image_src:
-            image_src = _clean_url(image_src)
-        print("EN cat image_src:", image_src)
-
-        title_tag = article.find("h2")
-        title = title_tag.get_text(strip=True) if title_tag else ""
-        print("EN cat title:", title)
-
-        content_tag = article.find("p")
-        content_text = content_tag.get_text(strip=True) if content_tag else ""
-
-        new_headline = Headline()
-        new_headline.title = title
-        new_headline.url = link
-        new_headline.language = language
-        new_headline.category = category
-        new_headline.image = image_src
-        new_headline.content = content_text
-        new_headline.save()
-
-
 def english_india_scrape(request):
-    _scrape_indianexpress_block(
-        url="https://indianexpress.com/section/india/",
+    """
+    English India/National using The Hindu RSS.
+    category=2 in DB.
+    """
+    _scrape_thehindu_rss(
+        feed_url="https://www.thehindu.com/news/national/?service=rss",
         language=1,
-        category=2,
+        category_id=2,
     )
     return english_tech_scrape(request)
 
 
 def english_tech_scrape(request):
-    _scrape_indianexpress_block(
-        url="https://indianexpress.com/section/technology/",
+    """
+    English Tech using The Hindu Tech RSS.
+    category=4 in DB.
+    """
+    _scrape_thehindu_rss(
+        feed_url="https://www.thehindu.com/sci-tech/technology/?service=rss",
         language=1,
-        category=4,
+        category_id=4,
     )
     return english_sports_scrape(request)
 
 
 def english_sports_scrape(request):
-    _scrape_indianexpress_block(
-        url="https://indianexpress.com/section/sports/",
+    """
+    English Sports using The Hindu Sports RSS.
+    category=5 in DB.
+    """
+    _scrape_thehindu_rss(
+        feed_url="https://www.thehindu.com/sport/?service=rss",
         language=1,
-        category=5,
+        category_id=5,
     )
     return english_movie_scrape(request)
 
 
 def english_movie_scrape(request):
-    _scrape_indianexpress_block(
-        url="https://indianexpress.com/section/entertainment/bollywood/box-office-collection/",
+    """
+    English Movies using The Hindu Movies RSS.
+    category=3 in DB.
+    """
+    _scrape_thehindu_rss(
+        feed_url="https://www.thehindu.com/entertainment/movies/?service=rss",
         language=1,
-        category=3,
+        category_id=3,
     )
     return news_list(request)
 
@@ -363,100 +370,81 @@ def login(request):
 def malayalam_login(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_malayalam.html", context)
 
 
 def malayalam_india_login(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_malayalam_india.html", context)
 
 
 def malayalam_movie_login(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_malayalam_movie.html", context)
 
 
 def malayalam_tech_login(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
+    print(context)
     return render(request, "news/home_malayalam_tech.html", context)
 
 
 def malayalam_sports_login(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_malayalam_sports.html", context)
 
 
 def english_login(request):
-    headlines = Headline.objects.all()[::-1]
+    """
+    English home (News/Trending).
+    If no English news for today, trigger full scrape().
+    """
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+
+    if not Headline.objects.filter(date=date_today, language=1).exists():
+        # Trigger full scraping chain
+        return scrape(request)
+
+    headlines = Headline.objects.all()[::-1]
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_english.html", context)
 
 
 def english_tech_login(request):
-    headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    headlines = Headline.objects.all()[::-1]
+    context = {"object_list": headlines, "date_today": date_today}
+    print(context)
     return render(request, "news/home_english_tech.html", context)
 
 
 def english_sports_login(request):
-    headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    headlines = Headline.objects.all()[::-1]
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_english_sports.html", context)
 
 
 def english_movie_login(request):
-    headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    headlines = Headline.objects.all()[::-1]
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_english_movie.html", context)
 
 
 def news_list(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_english.html", context)
 
 
@@ -471,10 +459,7 @@ def account(request):
 def search(request):
     headlines = Headline.objects.all()[::-1]
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/search.html", context)
 
 
@@ -540,7 +525,6 @@ def register(request):
             # Already exists
             return render(request, "news/index_register.html")
 
-    # Create new user
     dr = Users(
         name=name,
         email=email,
@@ -557,10 +541,15 @@ def logout(request):
 
 
 def english_india(request):
-    headlines = Headline.objects.all()[::-1]
+    """
+    English India/National page.
+    If there is no India news for today, trigger english_india_scrape().
+    """
     date_today = date.today()
-    context = {
-        "object_list": headlines,
-        "date_today": date_today,
-    }
+
+    if not Headline.objects.filter(date=date_today, language=1, category=2).exists():
+        return english_india_scrape(request)
+
+    headlines = Headline.objects.all()[::-1]
+    context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/english_india.html", context)
