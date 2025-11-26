@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Newsapp - English Movies</title>
+  <title>Newsapp - Movies</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
@@ -17,36 +17,58 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
+    .navbar-inverse {
+      border-radius: 0;
+      border: none;
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .feed-container {
+      max-width: 900px;
+      margin: 20px auto 40px;
+    }
+
+    .date-info {
+      font-size: 12px;
+      color: #777;
+      text-align: right;
+      margin-bottom: 10px;
+    }
+
     .news-card {
       background: #ffffff;
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 18px;
+      border-radius: 4px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      margin-bottom: 16px;
+      overflow: hidden;
       display: flex;
       flex-direction: row;
     }
 
-    .news-img {
+    .news-image {
       flex: 0 0 32%;
       max-width: 32%;
-      margin-right: 12px;
+      background: #ddd;
     }
 
-    .news-img img {
+    .news-image img {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 4px;
       display: block;
     }
 
     .news-content {
       flex: 1;
+      padding: 12px 14px;
     }
 
     .news-title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 600;
       margin-bottom: 6px;
       color: #222;
@@ -61,16 +83,41 @@
       text-decoration: underline;
     }
 
-    .news-text {
-      font-size: 14px;
+    .news-meta {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .badge-lang,
+    .badge-cat {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 11px;
+      border-radius: 999px;
+      margin-right: 4px;
+    }
+
+    .badge-lang {
+      border: 1px solid #ddd;
+      background: #fff;
+    }
+
+    .badge-cat {
+      background: #fce4ec;
+      color: #880e4f;
+    }
+
+    .news-summary {
+      font-size: 13px;
       color: #444;
       margin-bottom: 8px;
     }
 
     .read-more a {
-      font-size: 13px;
-      color: #e53935;
+      font-size: 12px;
       font-weight: 600;
+      color: #ff3b3b;
       text-decoration: none;
     }
 
@@ -78,17 +125,14 @@
       text-decoration: underline;
     }
 
-    @media only screen and (max-width: 700px) {
+    @media (max-width: 768px) {
       .news-card {
         flex-direction: column;
       }
-      .news-img {
+      .news-image {
         max-width: 100%;
-        margin-right: 0;
-        margin-bottom: 10px;
-      }
-      .news-img img {
-        height: 200px;
+        flex: 0 0 auto;
+        height: 180px;
       }
     }
   </style>
@@ -101,7 +145,7 @@
       <a class="navbar-brand" href="#">NEWSAPP</a>
     </div>
     <ul class="nav navbar-nav">
-      <li class="active"><a href="english_login">Home</a></li>
+      <li><a href="english_login">Home</a></li>
       <li class="dropdown">
         <a class="dropdown-toggle" data-toggle="dropdown" href="#">Language <span class="caret"></span></a>
         <ul class="dropdown-menu">
@@ -128,51 +172,57 @@
   </div>
 </nav>
 
-<div class="container">
-  <h3><b>English Movie News</b></h3>
-  <hr>
+<div class="feed-container">
+  {% if date_today %}
+    <div class="date-info">
+      {{ date_today|date:"F j, Y" }}
+    </div>
+  {% endif %}
 
-  <div class="row">
-    {% for object in object_list %}
-      {% if object.language == '1' %}
-        {% if object.category == '3' %}
-          {% if object.date == date_today %}
-
-            <div class="col-xs-12">
-              <div class="news-card">
-                {% if object.image %}
-                  <div class="news-img">
-                    <img src="{{ object.image }}" alt="{{ object.title }}">
-                  </div>
-                {% endif %}
-
-                <div class="news-content">
-                  <div class="news-title">
-                    <a href="{{ object.url }}" target="_blank">
-                      {{ object.title }}
-                    </a>
-                  </div>
-
-                  <div class="news-text">
-                    {% if object.content %}
-                      {{ object.content|truncatechars:220 }}
-                    {% else %}
-                      Click below to read the full story.
-                    {% endif %}
-                  </div>
-
-                  <div class="read-more">
-                    <a href="{{ object.url }}" target="_blank">Read full story →</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+  {% for object in object_list %}
+    {# English (1) + Movies (3) #}
+    {% if object.language == '1' and object.category == '3' %}
+      <div class="news-card">
+        <div class="news-image">
+          {% if object.image %}
+            <img src="{{ object.image }}" alt="news image">
           {% endif %}
-        {% endif %}
-      {% endif %}
-    {% endfor %}
-  </div>
+        </div>
+
+        <div class="news-content">
+          <div class="news-title">
+            <a href="{{ object.url }}" target="_blank">
+              {{ object.title }}
+            </a>
+          </div>
+
+          <div class="news-meta">
+            <span class="badge-lang">English</span>
+            <span class="badge-cat">Movies</span>
+            {% if object.date %}
+              • {{ object.date }}
+            {% endif %}
+          </div>
+
+          <div class="news-summary">
+            {% if object.content %}
+              {{ object.content|truncatechars:200 }}
+            {% else %}
+              Click below to read the full story.
+            {% endif %}
+          </div>
+
+          <div class="read-more">
+            <a href="{{ object.url }}" target="_blank">Read full story</a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  {% if object_list|length == 0 %}
+    <p>No news yet. Try running the scraper.</p>
+  {% endif %}
 </div>
 
 </body>
