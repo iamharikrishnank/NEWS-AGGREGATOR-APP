@@ -1,5 +1,5 @@
 """
-ASGI config for DataFlair_NewsAggregator project.
+ASGI config for DataFlair_NewsAggregator project.source myenv/bin/activate
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 

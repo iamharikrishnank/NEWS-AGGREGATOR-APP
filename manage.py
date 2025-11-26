@@ -3,6 +3,9 @@
 import os
 import sys
 
+from news.models import Headline
+print("EN:", Headline.objects.filter(language=1).count())
+print("ML:", Headline.objects.filter(language=2).count())
 
 def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'DataFlair_NewsAggregator.settings')
