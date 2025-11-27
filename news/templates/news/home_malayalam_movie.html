@@ -1,22 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Newsapp</title>
+  <title>Newsapp - Malayalam Movies</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3pro.css">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-    <style>
-      @media only screen and (min-width: 0px) and (max-width: 700px) {
-    td {
-        display:inline-block;
-        padding:5px;
-        width:100%;
-    }
-}
 
-    </style>
+  <style>
+    body {
+      background: #f2f2f2;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .navbar-inverse {
+      border-radius: 0;
+      border: none;
+    }
+
+    .navbar-brand {
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .feed-container {
+      max-width: 900px;
+      margin: 20px auto 40px;
+    }
+
+    .date-info {
+      font-size: 12px;
+      color: #777;
+      text-align: right;
+      margin-bottom: 10px;
+    }
+
+    .news-card {
+      background: #ffffff;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      margin-bottom: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: row;
+    }
+
+    .news-image {
+      flex: 0 0 32%;
+      max-width: 32%;
+      background: #ddd;
+    }
+
+    .news-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .news-content {
+      flex: 1;
+      padding: 12px 14px;
+    }
+
+    .news-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #222;
+    }
+
+    .news-title a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .news-title a:hover {
+      text-decoration: underline;
+    }
+
+    .news-meta {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .badge-lang,
+    .badge-cat {
+      display: inline-block;
+      padding: 2px 6px;
+      font-size: 11px;
+      border-radius: 999px;
+      margin-right: 4px;
+    }
+
+    .badge-lang {
+      border: 1px solid #ddd;
+      background: #fff;
+    }
+
+    .badge-cat {
+      background: #fce4ec;
+      color: #880e4f;
+    }
+
+    .news-summary {
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 8px;
+    }
+
+    .read-more a {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ff3b3b;
+      text-decoration: none;
+    }
+
+    .read-more a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .news-card {
+        flex-direction: column;
+      }
+      .news-image {
+        max-width: 100%;
+        flex: 0 0 auto;
+        height: 180px;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -26,26 +145,30 @@
       <a class="navbar-brand" href="#">NEWSAPP</a>
     </div>
     <ul class="nav navbar-nav">
-      <li class="active"><a href="english_login">Home</a></li>
-      <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Language <span class="caret"></span></a>
+      <li><a href="english_login">Home</a></li>
+
+      <li class="dropdown">
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#">Language <span class="caret"></span></a>
         <ul class="dropdown-menu">
           <li><a href="english_login">English</a></li>
           <li class="active"><a href="malayalam_login">Malayalam</a></li>
-<!--          <li><a href="#">Hindi</a></li>-->
         </ul>
       </li>
-        <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Category <span class="caret"></span></a>
+
+      <li class="dropdown">
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#">Category <span class="caret"></span></a>
         <ul class="dropdown-menu">
-          <li class="active"><a href="malayalam_india_login">India</a></li>
-          <li ><a href="malayalam_login">Trending</a></li>
+          <li><a href="malayalam_india_login">India</a></li>
+          <li><a href="malayalam_login">Trending</a></li>
           <li><a href="malayalam_tech_login">Technology</a></li>
           <li><a href="malayalam_sports_login">Sports</a></li>
-          <li><a href="malayalam_movie_login">Movies</a></li>
+          <li class="active"><a href="malayalam_movie_login">Movies</a></li>
         </ul>
       </li>
-        <li><a href="search">Search</a></li>
-<!--      <li><a href="#">India</a></li>-->
+
+      <li><a href="search">Search</a></li>
     </ul>
+
     <ul class="nav navbar-nav navbar-right">
       <li><a href="account"><span class="glyphicon glyphicon-user"></span> Sign Up</a></li>
       <li><a href="logout"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
@@ -53,61 +176,57 @@
   </div>
 </nav>
 
-<div class="container">
+<div class="feed-container">
+  {% if date_today %}
+    <div class="date-info">
+      {{ date_today|date:"F j, Y" }}
+    </div>
+  {% endif %}
 
-  <div class="row">
+  {% for object in object_list %}
+    {# Malayalam (2) + Movies (3) #}
+    {% if object.language == '2' and object.category == '3' %}
+      <div class="news-card">
+        <div class="news-image">
+          {% if object.image %}
+            <img src="{{ object.image }}" alt="news image">
+          {% endif %}
+        </div>
 
-   {% for object in object_list %}
-   {% if object.language == '2'  %}
-   {% if object.category == '3'  %}
-      {% if object.date == date_today  %}
-<!--    <a href="{{object.url}}"><h5>{{object.title}}</h5></a>-->
+        <div class="news-content">
+          <div class="news-title">
+            <a href="{{ object.url }}" target="_blank">
+              {{ object.title }}
+            </a>
+          </div>
 
-    <table>
-   <tr>
-     <td>
+          <div class="news-meta">
+            <span class="badge-lang">Malayalam</span>
+            <span class="badge-cat">Movies</span>
+            {% if object.date %}
+              • {{ object.date }}
+            {% endif %}
+          </div>
 
-    <img  src = "{{ object.image }}" >
-      </td>
-<td>
-    <h3 style="color:black;"><b>{{object.title}}</b></h3>
-      <p>{{object.content}}</p>
-    <a style="width=50%px" href="{{object.url}}">read more</a>
-</td>
-    </tr></table>
-<!--    <a style="width=50%px" href="{{object.url}}">read more</a>-->
-      <hr>
+          <div class="news-summary">
+            {% if object.content %}
+              {{ object.content|truncatechars:200 }}
+            {% else %}
+              Click below to read the full story.
+            {% endif %}
+          </div>
 
-   {% endif %}
-   {% endif %}
-   {% endif %}
-
-
-<!--  <div  style="width:50%; float:right">-->
-<!--    <h5>{{object.title}}</h5>-->
-<!--</div>-->
-
-
-
-
-
-
-
+          <div class="read-more">
+            <a href="{{ object.url }}" target="_blank">Read full story</a>
+          </div>
+        </div>
+      </div>
+    {% endif %}
   {% endfor %}
 
-
-<!--    <div class="col-6">-->
-<!-- {% for object in object_list %}-->
-
-<!--  <img class="card-img-top" src = "{{ object.image }}">-->
-
-
-<!--&lt;!&ndash;      <a href="{{object.url}}"><h5>{{object.title}}</h5></a>&ndash;&gt;-->
-
-
-<!--  {% endfor %}-->
-<!--    </div>-->
-  </div>
+  {% if object_list|length == 0 %}
+    <p>No Malayalam movie news yet. Try running the scraper.</p>
+  {% endif %}
 </div>
 
 </body>
