@@ -28,6 +28,7 @@ class Users(models.Model):
    email = models.CharField(max_length=5500)
    password = models.CharField(max_length=5500)
    language = models.CharField(max_length=200)
+   categories = models.CharField(max_length=200, null=True, blank=True)
    class Meta:
      db_table = "users"
 class Search(models.Model):

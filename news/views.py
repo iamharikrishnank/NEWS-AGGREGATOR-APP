@@ -431,17 +431,30 @@ def login(request):
 
     if user:
         user_language = user.language
-        request.session["language"] = str(user_language)  # Store language in session
+        request.session["language"] = str(user_language).split(',')[0] if user_language else "1"
         
-        headlines = Headline.objects.filter(date=date.today()).order_by("-id")
+        # Load multi settings
+        lang_prefs = str(user.language).split(',') if user.language else ['1']
+        cat_prefs = str(user.categories).split(',') if user.categories else []
+        request.session["language_prefs"] = lang_prefs
+        request.session["category_prefs"] = cat_prefs
+        
+        # Query with multi preferences
+        filters = {"date": date.today()}
+        if lang_prefs:
+            filters["language__in"] = lang_prefs
+        if cat_prefs:
+            filters["category__in"] = cat_prefs
+            
+        headlines = Headline.objects.filter(**filters).order_by("-id")
         date_today = date.today()
         context = {
             "object_list": headlines,
-            "user_language": str(user_language),
+            "user_language": request.session["language"],
             "date_today": date_today,
         }
-        # If Malayalam, route to the dark Malayalam template
-        if str(user_language) == '2':
+        # If primary language is Malayalam, route to the dark Malayalam template
+        if request.session["language"] == '2':
             context.update({"active_cat": "trending", "category_label": "Trending"})
             return render(request, "news/home_malayalam_new.html", context)
         
@@ -510,6 +523,29 @@ def _category_view(request, language, category_id, template_light, template_dark
 
 def malayalam_login(request):
     """Malayalam home (Trending/all): all Malayalam for today."""
+    
+    is_logged_in = request.session.get("username") is not None
+    if is_logged_in:
+        # Same logic as english_login for logged-in users, but redirect to malayalam template
+        date_today = date.today()
+        filters = {"date": date_today}
+        lang_prefs = request.session.get("language_prefs", [])
+        cat_prefs = request.session.get("category_prefs", [])
+        if lang_prefs:
+            filters["language__in"] = lang_prefs
+        if cat_prefs:
+            filters["category__in"] = cat_prefs
+            
+        headlines = Headline.objects.filter(**filters).order_by("-id")
+        context = {
+            "object_list": headlines, 
+            "date_today": date_today,
+            "active_cat": "trending", 
+            "category_label": "Trending",
+            "user_language": "2"
+        }
+        return render(request, "news/home_malayalam_new.html", context)
+        
     return _category_view(
         request, language=2, category_id=None,
         template_light=_MALAYALAM_TEMPLATES[None],
@@ -576,10 +612,24 @@ def english_login(request):
     if not Headline.objects.filter(date=date_today, language=1).exists():
         return scrape(request)
 
-    headlines = Headline.objects.filter(date=date_today, language=1).order_by("-id")
+    is_logged_in = request.session.get("username") is not None
+    
+    # Base filters
+    filters = {"date": date_today}
+    
+    if is_logged_in:
+        lang_prefs = request.session.get("language_prefs", [])
+        cat_prefs = request.session.get("category_prefs", [])
+        if lang_prefs:
+            filters["language__in"] = lang_prefs
+        if cat_prefs:
+            filters["category__in"] = cat_prefs
+    else:
+        filters["language"] = 1
+
+    headlines = Headline.objects.filter(**filters).order_by("-id")
     context = {"object_list": headlines, "date_today": date_today, "active_cat": "1"}
     
-    is_logged_in = request.session.get("username") is not None
     if is_logged_in:
         context["user_language"] = request.session.get("language", "1")
         return render(request, "news/user_view.html", context)
@@ -615,11 +665,21 @@ def english_movie_login(request):
 
 
 def news_list(request):
-    headlines = Headline.objects.all().order_by("-id")
+    is_logged_in = request.session.get("username") is not None
     date_today = date.today()
+    filters = {"date": date_today}
+    
+    if is_logged_in:
+        lang_prefs = request.session.get("language_prefs", [])
+        cat_prefs = request.session.get("category_prefs", [])
+        if lang_prefs:
+            filters["language__in"] = lang_prefs
+        if cat_prefs:
+            filters["category__in"] = cat_prefs
+
+    headlines = Headline.objects.filter(**filters).order_by("-id")
     context = {"object_list": headlines, "date_today": date_today, "active_cat": "all"}
     
-    is_logged_in = request.session.get("username") is not None
     if is_logged_in:
         context["user_language"] = request.session.get("language", "1")
         return render(request, "news/user_view.html", context)
@@ -726,6 +786,30 @@ def register(request):
 def logout(request):
     request.session.flush()
     return render(request, "news/index.html")
+
+def update_preferences(request):
+    import json
+    from django.http import JsonResponse
+    if request.method == "POST":
+        username = request.session.get("username")
+        if not username:
+            return JsonResponse({"error": "Not logged in"}, status=401)
+            
+        langs = request.POST.getlist("languages")
+        cats = request.POST.getlist("categories")
+        
+        user = Users.objects.filter(name=username).first()
+        if user:
+            user.language = ",".join(langs) if langs else user.language
+            user.categories = ",".join(cats) if cats else ""
+            user.save()
+            
+            request.session["language_prefs"] = langs
+            request.session["category_prefs"] = cats
+            
+            return JsonResponse({"status": "success"})
+            
+    return JsonResponse({"error": "Invalid request"}, status=400)
 
 
 def english_india(request):

@@ -375,6 +375,52 @@
     @media (max-width: 768px) {
       .mobile-nav { display: block; }
     }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+      z-index: 1000; display: none; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .modal-overlay.active { display: flex; opacity: 1; }
+    .modal {
+      background: var(--surface); width: 90%; max-width: 500px;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      transform: translateY(20px); transition: transform 0.3s;
+    }
+    .modal-overlay.active .modal { transform: translateY(0); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h3 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .modal-close { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
+    .modal-close:hover { color: var(--text); }
+    .pref-section { margin-bottom: 20px; }
+    .pref-section h4 { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pref-label {
+      display: flex; align-items: center; gap: 10px; padding: 12px;
+      background: var(--surface-light); border: 1px solid var(--border);
+      border-radius: 10px; cursor: pointer; transition: all 0.2s;
+      font-size: 14px; font-weight: 500;
+    }
+    .pref-label:hover { border-color: rgba(108, 99, 255, 0.4); }
+    .pref-label input { accent-color: var(--primary); width: 16px; height: 16px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-cancel { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-cancel:hover { background: var(--surface-light); }
+    .btn-save { background: var(--primary); color: #fff; display: flex; align-items: center; gap: 8px; }
+    .btn-save:hover { background: var(--primary-light); }
+    .btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .topbar__right { display: flex; align-items: center; gap: 12px; }
+    .topbar__btn {
+      color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 500;
+      padding: 8px 16px; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+      background: none; border: none; cursor: pointer;
+    }
+    .topbar__btn:hover { background: var(--surface-light); color: var(--text); }
   </style>
 </head>
 <body>
@@ -395,9 +441,14 @@
     </a>
   </nav>
 
-  <a href="{% url 'logout' %}" class="topbar__logout">
-    <i class="fa-solid fa-right-from-bracket"></i> Logout
-  </a>
+  <div class="topbar__right">
+    <button class="topbar__btn" onclick="openSettings()">
+      <i class="fa-solid fa-sliders"></i> Personalize Feed
+    </button>
+    <a href="{% url 'logout' %}" class="topbar__logout">
+      <i class="fa-solid fa-right-from-bracket"></i> Logout
+    </a>
+  </div>
 </header>
 
 <!-- Hero section -->
@@ -450,7 +501,6 @@
 <div class="feed" id="newsFeed">
 
   {% for object in object_list %}
-    {% if object.language == user_language and object.date == date_today %}
     <div class="card" data-category="{{ object.category }}">
       {% if object.image %}
       <div class="card__img">
@@ -495,7 +545,6 @@
         </div>
       </div>
     </div>
-    {% endif %}
   {% endfor %}
 
 </div>
@@ -505,36 +554,142 @@
   <p>No news found for this category. Try another one!</p>
 </div>
 
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-sliders"></i> Personalize Feed</h3>
+      <button class="modal-close" onclick="closeSettings()">&times;</button>
+    </div>
+    <form id="preferencesForm">
+      {% csrf_token %}
+      <div class="pref-section">
+        <h4><i class="fa-solid fa-language"></i> News Languages</h4>
+        <div class="pref-grid">
+          <label class="pref-label">
+            <input type="checkbox" name="languages" value="1" {% if '1' in request.session.language_prefs or not request.session.language_prefs %}checked{% endif %}> 
+            🇬🇧 English
+          </label>
+          <label class="pref-label">
+            <input type="checkbox" name="languages" value="2" {% if '2' in request.session.language_prefs %}checked{% endif %}> 
+            🇮🇳 Malayalam
+          </label>
+        </div>
+      </div>
+      <div class="pref-section" style="margin-top: 16px;">
+        <h4><i class="fa-solid fa-tags"></i> Categories</h4>
+        <div class="pref-grid">
+          <label class="pref-label">
+            <input type="checkbox" name="categories" value="1" {% if '1' in request.session.category_prefs %}checked{% endif %}> 
+            <i class="fa-solid fa-fire" style="color:#FF6584"></i> Trending
+          </label>
+          <label class="pref-label">
+            <input type="checkbox" name="categories" value="2" {% if '2' in request.session.category_prefs %}checked{% endif %}> 
+            <i class="fa-solid fa-flag" style="color:#34D399"></i> India
+          </label>
+          <label class="pref-label">
+            <input type="checkbox" name="categories" value="3" {% if '3' in request.session.category_prefs %}checked{% endif %}> 
+            <i class="fa-solid fa-film" style="color:#A78BFA"></i> Movies
+          </label>
+          <label class="pref-label">
+            <input type="checkbox" name="categories" value="4" {% if '4' in request.session.category_prefs %}checked{% endif %}> 
+            <i class="fa-solid fa-microchip" style="color:#60A5FA"></i> Technology
+          </label>
+          <label class="pref-label">
+            <input type="checkbox" name="categories" value="5" {% if '5' in request.session.category_prefs %}checked{% endif %}> 
+            <i class="fa-solid fa-futbol" style="color:#FBBF24"></i> Sports
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-cancel" onclick="closeSettings()">Cancel</button>
+        <button type="submit" class="btn btn-save" id="savePrefBtn">Save Preferences</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const pills = document.querySelectorAll('.cat-pill');
-  const cards = document.querySelectorAll('.card');
-  const empty = document.getElementById('emptyState');
+  // Setup logic for category pills
+  document.addEventListener('DOMContentLoaded', () => {
+    const pills = document.querySelectorAll('.cat-pill');
+    const cards = document.querySelectorAll('.card');
 
-  pills.forEach(pill => {
-    pill.addEventListener('click', () => {
-      // Update active pill
-      pills.forEach(p => p.classList.remove('cat-pill--active'));
-      pill.classList.add('cat-pill--active');
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        // remove active from all
+        pills.forEach(p => p.classList.remove('cat-pill--active'));
+        // add to current
+        pill.classList.add('cat-pill--active');
 
-      const cat = pill.dataset.cat;
-      let visibleCount = 0;
-
-      cards.forEach(card => {
-        if (cat === 'all' || card.dataset.category === cat) {
-          card.style.display = '';
-          visibleCount++;
-        } else {
-          card.style.display = 'none';
-        }
+        const cat = pill.getAttribute('data-cat');
+        
+        // Frontend JS filtering (only for the active DOM cards)
+        cards.forEach(card => {
+          if (cat === 'all') {
+            card.style.display = 'flex';
+          } else {
+            if (card.getAttribute('data-category') === cat) {
+              card.style.display = 'flex';
+            } else {
+              card.style.display = 'none';
+            }
+          }
+        });
       });
-
-      // Show/hide empty state
-      empty.style.display = visibleCount === 0 ? '' : 'none';
     });
   });
-});
-</script>
 
+  // Modal logic
+  const modal = document.getElementById('settingsModal');
+  const prefForm = document.getElementById('preferencesForm');
+  const saveBtn = document.getElementById('savePrefBtn');
+
+  function openSettings() {
+    modal.style.display = 'flex';
+    // Small delay to trigger transition
+    setTimeout(() => modal.classList.add('active'), 10);
+  }
+
+  function closeSettings() {
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+  }
+
+  // Handle outside click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeSettings();
+  });
+
+  prefForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveOrigText = saveBtn.innerText;
+    saveBtn.innerText = 'Saving...';
+    saveBtn.disabled = true;
+
+    try {
+      const formData = new FormData(prefForm);
+      const res = await fetch("{% url 'update_preferences' %}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      if(res.ok) {
+        window.location.reload();
+      } else {
+        alert("Failed to save preferences.");
+        saveBtn.innerText = saveOrigText;
+        saveBtn.disabled = false;
+      }
+    } catch(err) {
+      alert("Error saving preferences.");
+      saveBtn.innerText = saveOrigText;
+      saveBtn.disabled = false;
+    }
+  });
+
+</script>
 </body>
 </html>
