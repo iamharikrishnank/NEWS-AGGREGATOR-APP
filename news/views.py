@@ -431,13 +431,21 @@ def login(request):
 
     if user:
         user_language = user.language
-        headlines = Headline.objects.all().order_by("-id")
+        request.session["language"] = str(user_language)  # Store language in session
+        
+        headlines = Headline.objects.filter(date=date.today()).order_by("-id")
         date_today = date.today()
         context = {
             "object_list": headlines,
-            "user_language": user_language,
+            "user_language": str(user_language),
             "date_today": date_today,
         }
+        # If Malayalam, route to the dark Malayalam template
+        if str(user_language) == '2':
+            context.update({"active_cat": "trending", "category_label": "Trending"})
+            return render(request, "news/home_malayalam_new.html", context)
+        
+        # Otherwise English
         return render(request, "news/user_view.html", context)
 
     # Login failed → show page again with error
@@ -467,7 +475,7 @@ _ENGLISH_TEMPLATES = {
 }
 
 
-def _category_view(request, language, category_id, template, scraper_fn=None, extra_context=None):
+def _category_view(request, language, category_id, template_light, template_dark, scraper_fn=None, extra_context=None):
     """
     Generic category view: filter headlines by language/category/date,
     optionally trigger scraper_fn if no results exist yet.
@@ -484,9 +492,16 @@ def _category_view(request, language, category_id, template, scraper_fn=None, ex
 
     headlines = Headline.objects.filter(**filters).order_by("-id")
     context = {"object_list": headlines, "date_today": date_today}
-    if extra_context:
-        context.update(extra_context)
-    return render(request, template, context)
+    
+    is_logged_in = request.session.get("username") is not None
+    if is_logged_in:
+        # Pass user_language explicitly as it's used in user_view.html
+        context["user_language"] = request.session.get("language", str(language))
+        if extra_context:
+            context.update(extra_context)
+        return render(request, template_dark, context)
+    else:
+        return render(request, template_light, context)
 
 
 # -------------------------------------------------------------------
@@ -497,7 +512,8 @@ def malayalam_login(request):
     """Malayalam home (Trending/all): all Malayalam for today."""
     return _category_view(
         request, language=2, category_id=None,
-        template="news/home_malayalam_new.html",
+        template_light=_MALAYALAM_TEMPLATES[None],
+        template_dark="news/home_malayalam_new.html",
         scraper_fn=_scrape_all_malayalam,
         extra_context={"active_cat": "trending", "category_label": "Trending"}
     )
@@ -507,7 +523,8 @@ def malayalam_india_login(request):
     """Malayalam India page: category = 2."""
     return _category_view(
         request, language=2, category_id=2,
-        template="news/home_malayalam_new.html",
+        template_light=_MALAYALAM_TEMPLATES[2],
+        template_dark="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(2),
         extra_context={"active_cat": "india", "category_label": "India"}
     )
@@ -517,7 +534,8 @@ def malayalam_movie_login(request):
     """Malayalam Movies page: category = 3."""
     return _category_view(
         request, language=2, category_id=3,
-        template="news/home_malayalam_new.html",
+        template_light=_MALAYALAM_TEMPLATES[3],
+        template_dark="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(3),
         extra_context={"active_cat": "movies", "category_label": "Movies"}
     )
@@ -527,7 +545,8 @@ def malayalam_tech_login(request):
     """Malayalam Tech page: category = 4."""
     return _category_view(
         request, language=2, category_id=4,
-        template="news/home_malayalam_new.html",
+        template_light=_MALAYALAM_TEMPLATES[4],
+        template_dark="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(4),
         extra_context={"active_cat": "tech", "category_label": "Technology"}
     )
@@ -537,7 +556,8 @@ def malayalam_sports_login(request):
     """Malayalam Sports page: category = 5."""
     return _category_view(
         request, language=2, category_id=5,
-        template="news/home_malayalam_new.html",
+        template_light=_MALAYALAM_TEMPLATES[5],
+        template_dark="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(5),
         extra_context={"active_cat": "sports", "category_label": "Sports"}
     )
@@ -557,36 +577,54 @@ def english_login(request):
         return scrape(request)
 
     headlines = Headline.objects.filter(date=date_today, language=1).order_by("-id")
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_english.html", context)
+    context = {"object_list": headlines, "date_today": date_today, "active_cat": "1"}
+    
+    is_logged_in = request.session.get("username") is not None
+    if is_logged_in:
+        context["user_language"] = request.session.get("language", "1")
+        return render(request, "news/user_view.html", context)
+    else:
+        return render(request, "news/home_english.html", context)
 
 
 def english_tech_login(request):
     return _category_view(
         request, language=1, category_id=4,
-        template=_ENGLISH_TEMPLATES[4],
+        template_light=_ENGLISH_TEMPLATES[4],
+        template_dark="news/user_view.html",
+        extra_context={"active_cat": "4"}
     )
 
 
 def english_sports_login(request):
     return _category_view(
         request, language=1, category_id=5,
-        template=_ENGLISH_TEMPLATES[5],
+        template_light=_ENGLISH_TEMPLATES[5],
+        template_dark="news/user_view.html",
+        extra_context={"active_cat": "5"}
     )
 
 
 def english_movie_login(request):
     return _category_view(
         request, language=1, category_id=3,
-        template=_ENGLISH_TEMPLATES[3],
+        template_light=_ENGLISH_TEMPLATES[3],
+        template_dark="news/user_view.html",
+        extra_context={"active_cat": "3"}
     )
 
 
 def news_list(request):
     headlines = Headline.objects.all().order_by("-id")
     date_today = date.today()
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_english.html", context)
+    context = {"object_list": headlines, "date_today": date_today, "active_cat": "all"}
+    
+    is_logged_in = request.session.get("username") is not None
+    if is_logged_in:
+        context["user_language"] = request.session.get("language", "1")
+        return render(request, "news/user_view.html", context)
+    else:
+        return render(request, "news/home_english.html", context)
 
 
 def account(request):
@@ -702,5 +740,7 @@ def english_india(request):
 
     return _category_view(
         request, language=1, category_id=2,
-        template=_ENGLISH_TEMPLATES[2],
+        template_light=_ENGLISH_TEMPLATES[2],
+        template_dark="news/user_view.html",
+        extra_context={"active_cat": "2"}
     )
