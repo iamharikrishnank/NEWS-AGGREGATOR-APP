@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}newsdecklive{% endblock %}</title>
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+
+  <style>
+    body { background: #f2f2f2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .navbar-inverse { border-radius: 0; border: none; }
+    .navbar-brand { font-weight: 700; letter-spacing: 0.5px; text-transform: lowercase; }
+    .site-marquee { background:#222; color:#fff; padding:6px 10px; font-weight:600; }
+    .feed-container { max-width: 900px; margin: 20px auto 40px; }
+  </style>
+
+</head>
+<body>
+
+<nav class="navbar navbar-inverse">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/">{{ "newsdecklive" }}</a>
+    </div>
+    <ul class="nav navbar-nav">
+      <li><a href="{% url 'english_login' %}">Home</a></li>
+
+      <li class="dropdown">
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#">Language <span class="caret"></span></a>
+        <ul class="dropdown-menu">
+          <li><a href="{% url 'english_login' %}">English</a></li>
+          <li><a href="{% url 'malayalam_login' %}">Malayalam</a></li>
+        </ul>
+      </li>
+
+      <li class="dropdown">
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#">Category <span class="caret"></span></a>
+        <ul class="dropdown-menu">
+          <li><a href="{% url 'english_india' %}">India</a></li>
+          <li><a href="{% url 'english_login' %}">Trending</a></li>
+          <li><a href="{% url 'english_tech_login' %}">Technology</a></li>
+          <li><a href="{% url 'english_sports_login' %}">Sports</a></li>
+          <li><a href="{% url 'english_movie_login' %}">Movies</a></li>
+        </ul>
+      </li>
+
+      <li><a href="{% url 'search' %}">Search</a></li>
+    </ul>
+
+    <ul class="nav navbar-nav navbar-right">
+      <li><a href="{% url 'account' %}"><span class="glyphicon glyphicon-user"></span> Sign Up</a></li>
+      <li><a href="{% url 'logout' %}"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+    </ul>
+  </div>
+</nav>
+
+{# Optional scrolling banner. Remove <marquee> if you prefer no animation. #}
+<div class="site-marquee">
+  <marquee behavior="scroll" direction="left">
+    newsdecklive — Latest English & Malayalam news, updates and headlines
+  </marquee>
+</div>
+
+<div class="feed-container">
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

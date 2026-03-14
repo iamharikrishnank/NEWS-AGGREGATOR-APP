@@ -1,0 +1,201 @@
+/* ============================
+   LOGIN / SIGNUP PAGE STYLING
+   ============================ */
+
+   * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body {
+    background: #0e0e0e;
+    overflow: hidden;
+}
+
+/* Outer wrapper */
+.auth-wrapper {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+    background: linear-gradient(135deg, #232526, #414345);
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Background shapes */
+.background-shape {
+    position: absolute;
+    width: 650px;
+    height: 650px;
+    background: #ff416c;
+    border-radius: 50%;
+    top: -150px;
+    left: -200px;
+    opacity: 0.25;
+    filter: blur(90px);
+}
+
+.secondary-shape {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: #4a90e2;
+    border-radius: 50%;
+    bottom: -200px;
+    right: -150px;
+    opacity: 0.25;
+    filter: blur(90px);
+}
+
+/* Panels */
+.credentials-panel {
+    width: 380px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px);
+    padding: 40px 35px;
+    border-radius: 16px;
+    box-shadow: 0 0 25px rgba(255,255,255,0.05);
+    position: absolute;
+    transition: 0.6s ease;
+}
+
+.credentials-panel h2 {
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 28px;
+    letter-spacing: 1px;
+}
+
+/* Slide mechanic */
+.signin {
+    transform: translateX(0);
+}
+.signup {
+    transform: translateX(450px);
+}
+.auth-wrapper.toggled .signin {
+    transform: translateX(-450px);
+}
+.auth-wrapper.toggled .signup {
+    transform: translateX(0px);
+}
+
+/* Welcome sections */
+.welcome-section {
+    position: absolute;
+    width: 380px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+}
+.welcome-section.signin {
+    right: 450px;
+}
+.welcome-section.signup {
+    right: 0px;
+}
+.auth-wrapper.toggled .welcome-section.signin {
+    opacity: 0;
+}
+.auth-wrapper.toggled .welcome-section.signup {
+    opacity: 1;
+}
+
+.welcome-section h2 {
+    font-size: 36px;
+    font-weight: 700;
+}
+
+/* Input fields */
+.field-wrapper {
+    position: relative;
+    margin: 18px 0;
+}
+
+.field-wrapper input,
+.field-wrapper select {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-bottom: 2px solid #aaa;
+    background: transparent;
+    outline: none;
+    color: #fff;
+    font-size: 16px;
+}
+
+.field-wrapper label {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    color: #ccc;
+    transition: 0.3s;
+    pointer-events: none;
+}
+
+.field-wrapper input:focus ~ label,
+.field-wrapper input:valid ~ label,
+.field-wrapper select:focus ~ label,
+.field-wrapper select:valid ~ label {
+    top: -10px;
+    left: 0;
+    font-size: 12px;
+    color: #ff416c;
+}
+
+/* Icons */
+.field-wrapper i {
+    position: absolute;
+    top: 14px;
+    right: 10px;
+    color: #bbb;
+}
+
+/* Button */
+.submit-button {
+    width: 100%;
+    background: #ff416c;
+    border: none;
+    padding: 12px 0;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 17px;
+    color: white;
+    font-weight: 600;
+    transition: 0.3s ease;
+}
+.submit-button:hover {
+    background: #ff4b2b;
+}
+
+/* Links */
+.switch-link {
+    text-align: center;
+    margin-top: 15px;
+    color: #ddd;
+}
+.switch-link a {
+    color: #ff416c;
+    text-decoration: none;
+    font-weight: bold;
+}
+.switch-link a:hover {
+    text-decoration: underline;
+}
+
+/* Footer */
+.footer {
+    position: absolute;
+    width: 100%;
+    bottom: 20px;
+    text-align: center;
+    color: #ccc;
+    font-size: 14px;
+}

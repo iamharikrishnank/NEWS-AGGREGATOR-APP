@@ -3,15 +3,19 @@
 
 import re
 import html
+import logging
 import requests
 from datetime import date
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup as BSoup
+from django.db.models import Q
 from django.shortcuts import render
 from news.models import Headline, Malayalam_Headline, Search, Users
 
 requests.packages.urllib3.disable_warnings()
+
+logger = logging.getLogger(__name__)
 
 THE_HINDU_BASE = "https://www.thehindu.com"
 
@@ -21,7 +25,7 @@ THE_HINDU_BASE = "https://www.thehindu.com"
 # -------------------------------------------------------------------
 
 def _get_session():
-    """Return a requests session with a realistic User-Agent."""
+    """Return a requests session with a realistic User-Agent and retry."""
     session = requests.Session()
     session.headers = {
         "User-Agent": (
@@ -30,6 +34,9 @@ def _get_session():
             "Chrome/120.0.0.0 Safari/537.36"
         )
     }
+    adapter = requests.adapters.HTTPAdapter(max_retries=2)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
     return session
 
 
@@ -54,16 +61,16 @@ def _scrape_thehindu_rss(feed_url, language, category_id):
     try:
         response = session.get(feed_url, timeout=10, verify=False)
     except Exception as e:
-        print(f"The Hindu RSS request failed for {feed_url}: {e}")
+        logger.warning("The Hindu RSS request failed for %s: %s", feed_url, e)
         return
 
-    print("The Hindu RSS status:", response.status_code, "URL:", feed_url)
+    logger.info("The Hindu RSS status: %s  URL: %s", response.status_code, feed_url)
     if response.status_code != 200:
         return
 
     soup = BSoup(response.content, "xml")
     items = soup.find_all("item")
-    print(f"The Hindu RSS: {feed_url} -> {len(items)} items")
+    logger.info("The Hindu RSS: %s -> %d items", feed_url, len(items))
 
     today = date.today()
 
@@ -96,12 +103,12 @@ def _scrape_thehindu_rss(feed_url, language, category_id):
 
         # STRICT: skip if no image
         if not image_src:
-            print("Skipping EN (no image):", title)
+            logger.debug("Skipping EN (no image): %s", title)
             continue
 
-        print("TH RSS Title:", title)
-        print("TH RSS Link :", link)
-        print("TH RSS Image:", image_src)
+        logger.debug("TH RSS Title: %s", title)
+        logger.debug("TH RSS Link : %s", link)
+        logger.debug("TH RSS Image: %s", image_src)
 
         exists = Headline.objects.filter(
             title=title,
@@ -137,6 +144,8 @@ def _scrape_thehindu_rss(feed_url, language, category_id):
 
 _MALAYALAM_CHAR_RE = re.compile(r"[\u0D00-\u0D7F]")
 
+_TWENTYFOUR_BASE = "https://www.twentyfournews.com"
+
 
 def _normalize_24news_url(href: str) -> str:
     href = (href or "").strip()
@@ -145,8 +154,20 @@ def _normalize_24news_url(href: str) -> str:
     if href.startswith("//"):
         href = "https:" + href
     elif href.startswith("/"):
-        href = "https://www.twentyfournews.com" + href
+        href = _TWENTYFOUR_BASE + href
     return href
+
+
+def _resolve_relative_image(img_url: str) -> str:
+    """Resolve protocol-relative and path-relative image URLs."""
+    if not img_url:
+        return ""
+    img_url = img_url.strip()
+    if img_url.startswith("//"):
+        return "https:" + img_url
+    if img_url.startswith("/"):
+        return _TWENTYFOUR_BASE + img_url
+    return img_url
 
 
 def _fetch_24news_article_image(url: str, session: requests.Session) -> str:
@@ -156,11 +177,11 @@ def _fetch_24news_article_image(url: str, session: requests.Session) -> str:
     try:
         resp = session.get(url, verify=False, timeout=10)
     except Exception as e:
-        print("24NEWS article image request error:", e, "URL:", url)
+        logger.warning("24NEWS article image request error: %s  URL: %s", e, url)
         return None
 
     if resp.status_code != 200:
-        print("24NEWS article status not 200 for image:", resp.status_code, "URL:", url)
+        logger.warning("24NEWS article status %s for image  URL: %s", resp.status_code, url)
         return None
 
     soup = BSoup(resp.text, "html.parser")
@@ -168,43 +189,25 @@ def _fetch_24news_article_image(url: str, session: requests.Session) -> str:
     # Open Graph image
     og = soup.find("meta", property="og:image")
     if og and og.get("content"):
-        img = og["content"].strip()
-        if img.startswith("//"):
-            img = "https:" + img
-        elif img.startswith("/"):
-            img = "https://www.twentyfournews.com" + img
-        return img
+        return _resolve_relative_image(og["content"])
 
     # Twitter image fallback
     tw = soup.find("meta", attrs={"name": "twitter:image"})
     if tw and tw.get("content"):
-        img = tw["content"].strip()
-        if img.startswith("//"):
-            img = "https:" + img
-        elif img.startswith("/"):
-            img = "https://www.twentyfournews.com" + img
-        return img
+        return _resolve_relative_image(tw["content"])
 
     # Last resort: any img in article
     article = soup.find("article")
-    if article:
-        img_tag = article.find("img")
-    else:
-        img_tag = soup.find("img")
+    img_tag = (article or soup).find("img")
 
     if img_tag:
-        img = (
+        img_url = (
             img_tag.get("data-src")
-            or img.get("data-original")
+            or img_tag.get("data-original")
             or img_tag.get("src")
         )
-        if img:
-            img = img.strip()
-            if img.startswith("//"):
-                img = "https:" + img
-            elif img.startswith("/"):
-                img = "https://www.twentyfournews.com" + img
-            return img
+        if img_url:
+            return _resolve_relative_image(img_url)
 
     return None
 
@@ -216,17 +219,17 @@ def _scrape_24news_section(section_url: str, category_id: int):
     to fetch a reliable image from og:image,
     and SKIP any articles that have no image.
     """
-    print(f"SCRAPING 24NEWS → {section_url}")
+    logger.info("SCRAPING 24NEWS → %s", section_url)
 
     session = _get_session()
 
     try:
         response = session.get(section_url, verify=False, timeout=10)
     except Exception as e:
-        print("24NEWS request error:", e)
+        logger.warning("24NEWS request error: %s", e)
         return
 
-    print("24NEWS status:", response.status_code)
+    logger.info("24NEWS status: %s", response.status_code)
     if response.status_code != 200:
         return
 
@@ -265,13 +268,13 @@ def _scrape_24news_section(section_url: str, category_id: int):
 
         # STRICT: skip if NO image
         if not image_src:
-            print("Skipping ML (no image):", title)
+            logger.debug("Skipping ML (no image): %s", title)
             continue
 
-        print("24N link :", href)
-        print("24N title:", title)
-        print("24N img  :", image_src)
-        print("24N cat  :", category_id)
+        logger.debug("24N link : %s", href)
+        logger.debug("24N title: %s", title)
+        logger.debug("24N img  : %s", image_src)
+        logger.debug("24N cat  : %s", category_id)
 
         exists = Headline.objects.filter(
             title=title,
@@ -293,27 +296,29 @@ def _scrape_24news_section(section_url: str, category_id: int):
         )
         count += 1
 
-    print("✔ 24NEWS added WITH images only:", count)
+    logger.info("24NEWS added WITH images only: %d", count)
 
 
-def _scrape_malayalam_trending():
-    _scrape_24news_section("https://www.twentyfournews.com/news", 1)
+# Malayalam section scrapers (thin wrappers)
+
+_MALAYALAM_SECTIONS = {
+    1: ("https://www.twentyfournews.com/news", "Trending"),
+    2: ("https://www.twentyfournews.com/news/national", "India"),
+    3: ("https://www.twentyfournews.com/entertainment", "Movies"),
+    4: ("https://www.twentyfournews.com/tech", "Tech"),
+    5: ("https://www.twentyfournews.com/sports", "Sports"),
+}
 
 
-def _scrape_malayalam_india():
-    _scrape_24news_section("https://www.twentyfournews.com/news/national", 2)
+def _scrape_malayalam_category(category_id: int):
+    url, label = _MALAYALAM_SECTIONS[category_id]
+    logger.info("Scraping Malayalam %s...", label)
+    _scrape_24news_section(url, category_id)
 
 
-def _scrape_malayalam_movies():
-    _scrape_24news_section("https://www.twentyfournews.com/entertainment", 3)
-
-
-def _scrape_malayalam_tech():
-    _scrape_24news_section("https://www.twentyfournews.com/tech", 4)
-
-
-def _scrape_malayalam_sports():
-    _scrape_24news_section("https://www.twentyfournews.com/sports", 5)
+def _scrape_all_malayalam():
+    for cat_id in _MALAYALAM_SECTIONS:
+        _scrape_malayalam_category(cat_id)
 
 
 # -------------------------------------------------------------------
@@ -325,13 +330,8 @@ def scrape_malayalam(request):
     Malayalam scraping chain using TwentyFourNews sections.
     After Malayalam, continues English category scraping.
     """
-    print("Scraping Malayalam from TwentyFourNews...")
-    _scrape_malayalam_trending()
-    _scrape_malayalam_india()
-    _scrape_malayalam_movies()
-    _scrape_malayalam_tech()
-    _scrape_malayalam_sports()
-
+    logger.info("Scraping Malayalam from TwentyFourNews...")
+    _scrape_all_malayalam()
     return english_india_scrape(request)
 
 
@@ -385,14 +385,14 @@ def scrape(request):
     check_date = Headline.objects.filter(
         date=date_english, language=1, category=1
     ).exists()
-    print("headline_existing:", bool(headline_existing))
-    print("check_date:", check_date)
+    logger.info("headline_existing: %s", bool(headline_existing))
+    logger.info("check_date: %s", check_date)
 
     if headline_existing and check_date:
-        print("DB not empty and today's EN main data exists")
+        logger.info("DB not empty and today's EN main data exists")
         return news_list(request)
 
-    print("Scraping fresh EN main + Malayalam + EN categories")
+    logger.info("Scraping fresh EN main + Malayalam + EN categories")
 
     _scrape_thehindu_rss(
         feed_url="https://www.thehindu.com/news/?service=rss",
@@ -409,32 +409,82 @@ def scrape(request):
 
 def login(request):
     """
-    Very basic login using Users model (name/password).
+    Login using Users model (name/password) and show news if valid.
     """
-    username = request.POST.get("username", "")
-    password = request.POST.get("password", "")
-
-    if not username or not password:
+    # If it's a GET request, just show the login/signup page
+    if request.method == "GET":
         return render(request, "news/index.html")
 
+    # POST: process the login form
+    username = request.POST.get("username", "").strip()
+    password = request.POST.get("password", "").strip()
+
+    if not username or not password:
+        context = {"login_error": "Please enter both username and password."}
+        return render(request, "news/index.html", context)
+
+    # Only store username in session (never the password)
     request.session["username"] = username
-    request.session["password"] = password
 
-    users = Users.objects.all()
-    for user in users:
-        if user.name == username and user.password == password:
-            user_language = user.language
-            headlines = Headline.objects.all().order_by("-id")
-            date_today = date.today()
-            context = {
-                "object_list": headlines,
-                "user_language": user_language,
-                "date_today": date_today,
-            }
-            return render(request, "news/user_view.html", context)
+    # Try to find a matching user
+    user = Users.objects.filter(name=username, password=password).first()
 
-    # Login failed
-    return render(request, "news/index.html")
+    if user:
+        user_language = user.language
+        headlines = Headline.objects.all().order_by("-id")
+        date_today = date.today()
+        context = {
+            "object_list": headlines,
+            "user_language": user_language,
+            "date_today": date_today,
+        }
+        return render(request, "news/user_view.html", context)
+
+    # Login failed → show page again with error
+    context = {"login_error": "Invalid username or password."}
+    return render(request, "news/index.html", context)
+
+
+# -------------------------------------------------------------------
+# Shared category-view helpers
+# -------------------------------------------------------------------
+
+_MALAYALAM_TEMPLATES = {
+    None: "news/home_malayalam.html",
+    1: "news/home_malayalam.html",
+    2: "news/home_malayalam_india.html",
+    3: "news/home_malayalam_movie.html",
+    4: "news/home_malayalam_tech.html",
+    5: "news/home_malayalam_sports.html",
+}
+
+_ENGLISH_TEMPLATES = {
+    None: "news/home_english.html",
+    2: "news/english_india.html",
+    3: "news/home_english_movie.html",
+    4: "news/home_english_tech.html",
+    5: "news/home_english_sports.html",
+}
+
+
+def _category_view(request, language, category_id, template, scraper_fn=None):
+    """
+    Generic category view: filter headlines by language/category/date,
+    optionally trigger scraper_fn if no results exist yet.
+    """
+    date_today = date.today()
+
+    filters = {"date": date_today, "language": language}
+    if category_id is not None:
+        filters["category"] = category_id
+
+    if scraper_fn and not Headline.objects.filter(**filters).exists():
+        logger.info("No headlines for lang=%s cat=%s → scraping...", language, category_id)
+        scraper_fn()
+
+    headlines = Headline.objects.filter(**filters).order_by("-id")
+    context = {"object_list": headlines, "date_today": date_today}
+    return render(request, template, context)
 
 
 # -------------------------------------------------------------------
@@ -442,109 +492,48 @@ def login(request):
 # -------------------------------------------------------------------
 
 def malayalam_login(request):
-    """
-    Malayalam home (Trending/all): all Malayalam for today.
-    If empty, trigger all Malayalam scrapers once.
-    """
-    date_today = date.today()
-
-    if not Headline.objects.filter(date=date_today, language=2).exists():
-        print("No ML headlines for today → scraping all Malayalam sections...")
-        _scrape_malayalam_trending()
-        _scrape_malayalam_india()
-        _scrape_malayalam_movies()
-        _scrape_malayalam_tech()
-        _scrape_malayalam_sports()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=2,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_malayalam.html", context)
+    """Malayalam home (Trending/all): all Malayalam for today."""
+    return _category_view(
+        request, language=2, category_id=None,
+        template=_MALAYALAM_TEMPLATES[None],
+        scraper_fn=_scrape_all_malayalam,
+    )
 
 
 def malayalam_india_login(request):
-    """
-    Malayalam India page: category = 2.
-    """
-    date_today = date.today()
-
-    if not Headline.objects.filter(date=date_today, language=2, category=2).exists():
-        print("No ML India for today → scraping ML India...")
-        _scrape_malayalam_india()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=2,
-        category=2,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_malayalam_india.html", context)
+    """Malayalam India page: category = 2."""
+    return _category_view(
+        request, language=2, category_id=2,
+        template=_MALAYALAM_TEMPLATES[2],
+        scraper_fn=lambda: _scrape_malayalam_category(2),
+    )
 
 
 def malayalam_movie_login(request):
-    """
-    Malayalam Movies page: category = 3.
-    """
-    date_today = date.today()
-
-    if not Headline.objects.filter(date=date_today, language=2, category=3).exists():
-        print("No ML Movies for today → scraping ML Movies...")
-        _scrape_malayalam_movies()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=2,
-        category=3,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_malayalam_movie.html", context)
+    """Malayalam Movies page: category = 3."""
+    return _category_view(
+        request, language=2, category_id=3,
+        template=_MALAYALAM_TEMPLATES[3],
+        scraper_fn=lambda: _scrape_malayalam_category(3),
+    )
 
 
 def malayalam_tech_login(request):
-    """
-    Malayalam Tech page: category = 4.
-    """
-    date_today = date.today()
-
-    if not Headline.objects.filter(date=date_today, language=2, category=4).exists():
-        print("No ML Tech for today → scraping ML Tech...")
-        _scrape_malayalam_tech()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=2,
-        category=4,
-    ).order_by("-id")
-
-    print("ML TECH count:", headlines.count())
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_malayalam_tech.html", context)
+    """Malayalam Tech page: category = 4."""
+    return _category_view(
+        request, language=2, category_id=4,
+        template=_MALAYALAM_TEMPLATES[4],
+        scraper_fn=lambda: _scrape_malayalam_category(4),
+    )
 
 
 def malayalam_sports_login(request):
-    """
-    Malayalam Sports page: category = 5.
-    """
-    date_today = date.today()
-
-    if not Headline.objects.filter(date=date_today, language=2, category=5).exists():
-        print("No ML Sports for today → scraping ML Sports...")
-        _scrape_malayalam_sports()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=2,
-        category=5,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_malayalam_sports.html", context)
+    """Malayalam Sports page: category = 5."""
+    return _category_view(
+        request, language=2, category_id=5,
+        template=_MALAYALAM_TEMPLATES[5],
+        scraper_fn=lambda: _scrape_malayalam_category(5),
+    )
 
 
 # -------------------------------------------------------------------
@@ -557,57 +546,33 @@ def english_login(request):
     If no English news for today, trigger full scrape().
     """
     date_today = date.today()
-
     if not Headline.objects.filter(date=date_today, language=1).exists():
-        # Trigger full scraping chain
         return scrape(request)
 
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=1,
-    ).order_by("-id")
-
+    headlines = Headline.objects.filter(date=date_today, language=1).order_by("-id")
     context = {"object_list": headlines, "date_today": date_today}
     return render(request, "news/home_english.html", context)
 
 
 def english_tech_login(request):
-    date_today = date.today()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=1,
-        category=4,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_english_tech.html", context)
+    return _category_view(
+        request, language=1, category_id=4,
+        template=_ENGLISH_TEMPLATES[4],
+    )
 
 
 def english_sports_login(request):
-    date_today = date.today()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=1,
-        category=5,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_english_sports.html", context)
+    return _category_view(
+        request, language=1, category_id=5,
+        template=_ENGLISH_TEMPLATES[5],
+    )
 
 
 def english_movie_login(request):
-    date_today = date.today()
-
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=1,
-        category=3,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/home_english_movie.html", context)
+    return _category_view(
+        request, language=1, category_id=3,
+        template=_ENGLISH_TEMPLATES[3],
+    )
 
 
 def news_list(request):
@@ -622,7 +587,7 @@ def account(request):
 
 
 # -------------------------------------------------------------------
-# Search
+# Search (uses Django ORM filtering instead of Python loops)
 # -------------------------------------------------------------------
 
 def search(request):
@@ -633,29 +598,40 @@ def search(request):
 
 
 def search_news(request):
-    headlines = Headline.objects.all()
-
-    # Clear previous search results
+    """
+    Filter headlines via Django ORM and bulk-create Search results.
+    """
     Search.objects.all().delete()
 
-    search_category = request.POST.get("search_category")
-    search_lang = request.POST.get("search_lang")
+    search_lang = request.POST.get("search_lang", "")
+    search_category = request.POST.get("search_category", "")
     search_title = request.POST.get("search_title", "")
-    search_date = request.POST.get("search_date")
+    search_date = request.POST.get("search_date", "")
 
-    for headline in headlines:
-        if str(headline.language) == str(search_lang):
-            if str(headline.category) == str(search_category):
-                if str(headline.date) == str(search_date):
-                    if search_title in headline.title:
-                        Search.objects.create(
-                            title=headline.title,
-                            url=headline.url,
-                            language=headline.language,
-                            category=headline.category,
-                            image=headline.image,
-                            content=headline.content,
-                        )
+    filters = {}
+    if search_lang:
+        filters["language"] = search_lang
+    if search_category:
+        filters["category"] = search_category
+    if search_date:
+        filters["date"] = search_date
+
+    qs = Headline.objects.filter(**filters)
+
+    if search_title:
+        qs = qs.filter(title__icontains=search_title)
+
+    Search.objects.bulk_create([
+        Search(
+            title=h.title,
+            url=h.url,
+            language=h.language,
+            category=h.category,
+            image=h.image,
+            content=h.content,
+        )
+        for h in qs
+    ])
 
     return search_view(request)
 
@@ -663,8 +639,6 @@ def search_news(request):
 def search_view(request):
     headlines = Headline.objects.all().order_by("-id")
     object_search = Search.objects.all()
-    for a in object_search:
-        print("Search result:", a.title)
 
     context = {
         "object_list": headlines,
@@ -678,21 +652,20 @@ def search_view(request):
 # -------------------------------------------------------------------
 
 def register(request):
-    name = request.POST.get("name", "")
-    email = request.POST.get("email", "")
+    name = request.POST.get("name", "").strip()
+    email = request.POST.get("email", "").strip()
     password = request.POST.get("password", "")
     language = request.POST.get("language")
 
+    if not name or not email or not password:
+        return render(request, "news/index_register.html")
+
     request.session["name"] = name
     request.session["email"] = email
-    request.session["password"] = password
-    request.session["language"] = language
 
-    users = Users.objects.all()
-    for user in users:
-        if user.name == name or user.email == email:
-            # Already exists
-            return render(request, "news/index_register.html")
+    # Check for duplicate user via ORM instead of loading all users
+    if Users.objects.filter(Q(name=name) | Q(email=email)).exists():
+        return render(request, "news/index_register.html")
 
     Users.objects.create(
         name=name,
@@ -704,7 +677,7 @@ def register(request):
 
 
 def logout(request):
-    # Simple logout: just show login page
+    request.session.flush()
     return render(request, "news/index.html")
 
 
@@ -718,11 +691,7 @@ def english_india(request):
     if not Headline.objects.filter(date=date_today, language=1, category=2).exists():
         return english_india_scrape(request)
 
-    headlines = Headline.objects.filter(
-        date=date_today,
-        language=1,
-        category=2,
-    ).order_by("-id")
-
-    context = {"object_list": headlines, "date_today": date_today}
-    return render(request, "news/english_india.html", context)
+    return _category_view(
+        request, language=1, category_id=2,
+        template=_ENGLISH_TEMPLATES[2],
+    )
