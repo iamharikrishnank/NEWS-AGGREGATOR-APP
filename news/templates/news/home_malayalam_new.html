@@ -1,0 +1,481 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <title>newsdecklive – മലയാളം {{ category_label|default:"വാർത്തകൾ" }}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Malayalam news on newsdecklive – {{ category_label|default:'Trending' }}">
+
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --bg: #0B0D17;
+      --surface: #141625;
+      --surface-light: #1C1F35;
+      --border: rgba(255,255,255,0.08);
+      --text: #F1F1F3;
+      --text-muted: #9CA3AF;
+      --primary: #6C63FF;
+      --primary-light: #8B83FF;
+      --accent: #FF6584;
+      --green: #34D399;
+      --radius: 16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- Navbar ---- */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+
+    .topbar__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .topbar__logo {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .topbar__logo i { font-size: 16px; color: #fff; }
+
+    .topbar__name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .topbar__nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .topbar__link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .topbar__link:hover { color: var(--text); background: var(--surface-light); }
+
+    .topbar__right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar__action {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .topbar__action:hover { background: var(--surface-light); color: var(--text); }
+    .topbar__action--logout { color: var(--accent); }
+    .topbar__action--logout:hover { background: rgba(255, 101, 132, 0.1); }
+
+    /* ---- Hero ---- */
+    .hero {
+      max-width: 1000px;
+      margin: 32px auto 0;
+      padding: 0 20px;
+    }
+
+    .hero__title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .hero__title span {
+      background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero__sub {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 24px;
+    }
+
+    /* Language toggle */
+    .lang-switch {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      width: fit-content;
+      margin-bottom: 28px;
+    }
+
+    .lang-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .lang-btn:hover { color: var(--text); }
+    .lang-btn--active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* Category pills */
+    .categories {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .cat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.25s;
+    }
+
+    .cat-pill:hover {
+      color: var(--text);
+      border-color: var(--primary);
+      background: rgba(108, 99, 255, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .cat-pill--active {
+      color: #fff;
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .cat-pill--active:hover {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+    }
+
+    .cat-pill i { font-size: 14px; }
+
+    /* Date tag */
+    .date-tag {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .date-tag i { margin-right: 4px; }
+
+    /* ---- News Grid ---- */
+    .feed {
+      max-width: 1000px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+      border-color: rgba(108, 99, 255, 0.2);
+    }
+
+    .card__img {
+      flex: 0 0 260px;
+      background: var(--surface-light);
+      overflow: hidden;
+    }
+
+    .card__img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+
+    .card:hover .card__img img { transform: scale(1.04); }
+
+    .card__body {
+      flex: 1;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card__tags {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tag--lang { background: rgba(52,211,153,0.15); color: var(--green); }
+    .tag--cat  { background: rgba(255,101,132,0.12); color: var(--accent); }
+
+    .card__title {
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .card__title a { color: inherit; text-decoration: none; }
+    .card__title a:hover { text-decoration: underline; }
+
+    .card__excerpt {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 12px;
+    }
+
+    .card__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card__date { font-size: 12px; color: var(--text-muted); }
+
+    .card__read {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary-light);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s;
+    }
+
+    .card__read:hover { gap: 8px; }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty i { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+    .empty p { font-size: 16px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .topbar__nav { display: none; }
+      .card { flex-direction: column; }
+      .card__img { flex: 0 0 180px; }
+      .hero__title { font-size: 22px; }
+      .categories { gap: 8px; }
+      .cat-pill { padding: 8px 14px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<header class="topbar">
+  <a href="{% url 'scrape' %}" class="topbar__brand">
+    <div class="topbar__logo"><i class="fa-solid fa-newspaper"></i></div>
+    <span class="topbar__name">newsdecklive</span>
+  </a>
+
+  <nav class="topbar__nav">
+    <a href="{% url 'english_login' %}" class="topbar__link">
+      <i class="fa-solid fa-house"></i> Home
+    </a>
+    <a href="{% url 'search' %}" class="topbar__link">
+      <i class="fa-solid fa-magnifying-glass"></i> Search
+    </a>
+  </nav>
+
+  <div class="topbar__right">
+    <a href="{% url 'account' %}" class="topbar__action">
+      <i class="fa-solid fa-user-plus"></i> Sign Up
+    </a>
+    <a href="{% url 'logout' %}" class="topbar__action topbar__action--logout">
+      <i class="fa-solid fa-right-from-bracket"></i> Logout
+    </a>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <h1 class="hero__title">
+    🇮🇳 <span>മലയാളം</span> വാർത്തകൾ
+  </h1>
+  <p class="hero__sub">{{ category_label|default:"Trending" }} news in Malayalam</p>
+
+  <!-- Language toggle -->
+  <div class="lang-switch">
+    <a href="{% url 'english_login' %}" class="lang-btn">
+      🇬🇧 English
+    </a>
+    <a href="{% url 'malayalam_login' %}" class="lang-btn lang-btn--active">
+      🇮🇳 Malayalam
+    </a>
+  </div>
+
+  <!-- Category pills -->
+  <div class="categories">
+    <a href="{% url 'malayalam_login' %}"
+       class="cat-pill {% if active_cat == 'trending' or active_cat == None %}cat-pill--active{% endif %}">
+      <i class="fa-solid fa-fire"></i> Trending
+    </a>
+    <a href="{% url 'malayalam_india_login' %}"
+       class="cat-pill {% if active_cat == 'india' %}cat-pill--active{% endif %}">
+      <i class="fa-solid fa-flag"></i> India
+    </a>
+    <a href="{% url 'malayalam_movie_login' %}"
+       class="cat-pill {% if active_cat == 'movies' %}cat-pill--active{% endif %}">
+      <i class="fa-solid fa-film"></i> Movies
+    </a>
+    <a href="{% url 'malayalam_tech_login' %}"
+       class="cat-pill {% if active_cat == 'tech' %}cat-pill--active{% endif %}">
+      <i class="fa-solid fa-microchip"></i> Technology
+    </a>
+    <a href="{% url 'malayalam_sports_login' %}"
+       class="cat-pill {% if active_cat == 'sports' %}cat-pill--active{% endif %}">
+      <i class="fa-solid fa-futbol"></i> Sports
+    </a>
+  </div>
+
+  {% if date_today %}
+  <div class="date-tag">
+    <i class="fa-regular fa-calendar"></i> {{ date_today|date:"l, F j, Y" }}
+  </div>
+  {% endif %}
+</section>
+
+<!-- News Feed -->
+<div class="feed">
+  {% for object in object_list %}
+    <div class="card">
+      {% if object.image %}
+      <div class="card__img">
+        <img src="{{ object.image }}" alt="{{ object.title|truncatechars:50 }}" loading="lazy">
+      </div>
+      {% endif %}
+
+      <div class="card__body">
+        <div class="card__tags">
+          <span class="tag tag--lang">Malayalam</span>
+          <span class="tag tag--cat">{{ category_label|default:"Trending" }}</span>
+        </div>
+
+        <h2 class="card__title">
+          <a href="{{ object.url }}" target="_blank" rel="noopener">{{ object.title }}</a>
+        </h2>
+
+        <p class="card__excerpt">
+          {% if object.content %}
+            {{ object.content|truncatechars:180 }}
+          {% else %}
+            Click below to read the full story.
+          {% endif %}
+        </p>
+
+        <div class="card__footer">
+          <span class="card__date">
+            <i class="fa-regular fa-clock"></i> {{ object.date|date:"M j" }}
+          </span>
+          <a href="{{ object.url }}" target="_blank" rel="noopener" class="card__read">
+            Read more <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="empty">
+      <i class="fa-solid fa-newspaper"></i>
+      <p>No Malayalam {{ category_label|default:"Trending" }} news yet. Try running the scraper.</p>
+    </div>
+  {% endfor %}
+</div>
+
+</body>
+</html>
