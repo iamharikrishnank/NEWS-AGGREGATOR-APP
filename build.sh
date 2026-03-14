@@ -10,5 +10,5 @@ pip install -r requirements.txt
 # collect static files
 python manage.py collectstatic --noinput
 
-# (optional) migrate automatically - commented out; run migrations from Render shell manually
-# python manage.py migrate --noinput
+# (optional) migrate automatically
+python manage.py migrate --noinput
