@@ -1,111 +1,141 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	{% load bootstrap3 %}
-    {% bootstrap_css %}
-    {% bootstrap_javascript %}
-    <!-- first load django static tag. -->
-    {% load static %}
-	<title>Login</title>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>newsdecklive – Create Account</title>
+  <meta name="description" content="Create your newsdecklive account for personalized English & Malayalam news.">
 
-<!--===============================================================================================-->
-	<link rel="icon" type="image/png" href="{% static 'images/icons/favicon.ico' %}"/>
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor/bootstrap/css/bootstrap.min.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/fonts/font-awesome-4.7.0/css/font-awesome.min.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/fonts/Linearicons-Free-v1.0.0/icon-font.min.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor/animate/animate.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor/css-hamburgers/hamburgers.min.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor/animsition/css/animsition.min.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor/select2/select2.min.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor/daterangepicker/daterangepicker.css' %}">
-<!--===============================================================================================-->
-	<link rel="stylesheet" type="text/css" href="{% static 'css/util.css' %}">
-	<link rel="stylesheet" type="text/css" href="{% static 'css/mobile.css' %}">
-<!--===============================================================================================-->
+  <!-- Styles -->
+  <link rel="stylesheet" href="{% static 'css/login.css' %}">
+
+  <!-- Icons -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    /* Show signup card on this standalone page */
+    .auth-wrapper { }
+    .auth-wrapper .card-face--front { opacity: 0; pointer-events: none; transform: translateY(-16px) scale(0.98); }
+    .auth-wrapper .card-face--back { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+  </style>
 </head>
+
 <body>
 
-<!--	<div class="limiter">-->
-<!--		<div class="container-login100" style="background-image: url('/static/images/bg-01.jpg');">-->
-<!--			<div class="wrap-login100 p-t-30 p-b-50">-->
-<!--				<span class="login100-form-title p-b-41">-->
-<!--					Account Login-->
-<!--				</span>-->
-<!--				<div class="background-wrap">-->
-<!--  <div class="background"></div>-->
-<!--</div>-->
+<div class="auth-wrapper" id="authWrapper">
 
-<form name = "form" action = "{% url "register" %}"
-         method = "POST" >{% csrf_token %}
-  <h1 id="litheader">Create an account</h1>
-  <div class="inset">
+  <div class="bg-orb bg-orb--1"></div>
+  <div class="bg-orb bg-orb--2"></div>
+  <div class="bg-orb bg-orb--3"></div>
+  <div class="particles" id="particles"></div>
 
-    <div class="form-row">
-     <label class="col-sm-2 col-form-label"  for="name">Name</label>
-     <input type="text" class="form-control col-sm-10" name="name" id="name" />
-  </div>
-	  <div class="form-row">
-     <label class="col-sm-2 col-form-label"  for="name">Email</label>
-     <input type="text" class="form-control col-sm-10" type="email" name="email" required id="name" />
-  </div>
-	  <div class="form-row">
-     <label class="col-sm-2 col-form-label"  for="name">Password</label>
-     <input type="text" class="form-control col-sm-10" type="password" name="password" required id="name" />
-  </div>
-	  <div class="form-row">
-		  <label class="col-sm-2 col-form-label"  for="la">Language</label>
-		  <div class="select_box">
+  <div class="auth-container">
 
-                    <select  name="language" id="la">
-              <option placeholder="" value="1">English</option>
+    <div class="brand">
+      <div class="brand__icon">
+        <i class="fa-solid fa-newspaper"></i>
+      </div>
+      <div class="brand__name">newsdecklive</div>
+      <div class="brand__tagline">English & Malayalam News Aggregator</div>
+    </div>
+
+    <div class="card-flipper" id="cardFlipper">
+
+      <!-- FRONT (hidden on this page) -->
+      <div class="card-face card-face--front">
+        <div class="card-header">
+          <h1 class="card-header__title">Welcome Back</h1>
+          <p class="card-header__subtitle">Sign in to continue</p>
+        </div>
+        <div class="switch-prompt">
+          <a href="{% url 'login' %}" class="switch-prompt__link">Go to Sign In</a>
+        </div>
+      </div>
+
+      <!-- BACK — SIGNUP (visible) -->
+      <div class="card-face card-face--back">
+        <div class="card-header">
+          <h1 class="card-header__title">Create Account</h1>
+          <p class="card-header__subtitle">Join newsdecklive for personalized news</p>
+        </div>
+
+        <form method="post" action="{% url 'register' %}" id="signupForm">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <i class="fa-solid fa-user form-group__icon"></i>
+            <input type="text"
+                   name="name"
+                   id="signup-name"
+                   class="form-group__input"
+                   placeholder="Full Name"
+                   autocomplete="name"
+                   required>
+          </div>
+
+          <div class="form-group">
+            <i class="fa-solid fa-envelope form-group__icon"></i>
+            <input type="email"
+                   name="email"
+                   id="signup-email"
+                   class="form-group__input"
+                   placeholder="Email Address"
+                   autocomplete="email"
+                   required>
+          </div>
+
+          <div class="form-group">
+            <i class="fa-solid fa-lock form-group__icon"></i>
+            <input type="password"
+                   name="password"
+                   id="signup-password"
+                   class="form-group__input"
+                   placeholder="Password"
+                   autocomplete="new-password"
+                   required>
+            <button type="button" class="form-group__toggle" data-target="signup-password" aria-label="Toggle password visibility">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+
+          <div class="form-group">
+            <i class="fa-solid fa-language form-group__icon"></i>
+            <select name="language"
+                    id="signup-language"
+                    class="form-group__select"
+                    required>
+              <option value="" disabled selected hidden>Preferred Language</option>
+              <option value="1">English</option>
               <option value="2">Malayalam</option>
-
             </select>
-		  </div>
+          </div>
 
+          <button type="submit" class="btn-submit" id="signupBtn">
+            Create Account
+          </button>
+        </form>
 
-<input class="loginLoginValue" type="hidden" name="service" value="login" />
+        <div class="divider">or</div>
 
+        <div class="switch-prompt">
+          Already have an account?
+          <a href="{% url 'login' %}" class="switch-prompt__link">Sign In</a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="auth-footer">
+      <span>© 2026 newsdecklive • All rights reserved</span>
+    </div>
 
   </div>
+</div>
 
-  <p class="p-container">
-    <input type="submit" name="register" id="go" value="register">
-  </p>
-</form>
-			</div>
-		</div>
-	</div>
-
-
-	<div id="dropDownSelect1"></div>
-
-<!--===============================================================================================-->
-	<script src="{% static 'css/vendor/jquery/jquery-3.2.1.min.js'	%}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'css/vendor/animsition/js/animsition.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'css/vendor/bootstrap/js/popper.js' %}"></script>
-	<script src="{% static 'css/vendor/bootstrap/js/bootstrap.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'css/vendor/select2/select2.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'css/vendor/daterangepicker/moment.min.js' %}"></script>
-	<script src="{% static 'css/vendor/daterangepicker/daterangepicker.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'css/vendor/countdowntime/countdowntime.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'js/main_login.js' %}"></script>
+<script src="{% static 'js/login.js' %}"></script>
 
 </body>
 </html>

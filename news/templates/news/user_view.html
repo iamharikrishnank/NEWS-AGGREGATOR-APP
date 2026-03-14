@@ -1,119 +1,540 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>newsdecklive</title>
+  <title>newsdecklive – Your Feed</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3pro.css">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-    <style>
-      @media only screen and (min-width: 0px) and (max-width: 700px) {
-    td {
-        display:inline-block;
-        padding:5px;
-        width:100%;
-    }
-}
+  <meta name="description" content="Your personalized news feed on newsdecklive">
 
-    </style>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --bg: #0B0D17;
+      --surface: #141625;
+      --surface-light: #1C1F35;
+      --border: rgba(255,255,255,0.08);
+      --text: #F1F1F3;
+      --text-muted: #9CA3AF;
+      --primary: #6C63FF;
+      --primary-light: #8B83FF;
+      --accent: #FF6584;
+      --green: #34D399;
+      --radius: 16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- Navbar ---- */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+
+    .topbar__brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .topbar__logo {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .topbar__logo i { font-size: 16px; color: #fff; }
+
+    .topbar__name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .topbar__nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .topbar__link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .topbar__link:hover { color: var(--text); background: var(--surface-light); }
+
+    .topbar__link--active {
+      color: var(--primary-light);
+      background: rgba(108, 99, 255, 0.1);
+    }
+
+    .topbar__logout {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .topbar__logout:hover { background: rgba(255, 101, 132, 0.1); }
+
+    /* ---- Welcome + Category Filter ---- */
+    .hero {
+      max-width: 1000px;
+      margin: 32px auto 0;
+      padding: 0 20px;
+    }
+
+    .hero__greeting {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+
+    .hero__greeting span {
+      background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero__sub {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 24px;
+    }
+
+    /* Category pills */
+    .categories {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .cat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.25s;
+      cursor: pointer;
+    }
+
+    .cat-pill:hover {
+      color: var(--text);
+      border-color: var(--primary);
+      background: rgba(108, 99, 255, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .cat-pill--active {
+      color: #fff;
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .cat-pill--active:hover {
+      background: var(--primary-light);
+      border-color: var(--primary-light);
+    }
+
+    .cat-pill i { font-size: 14px; }
+
+    /* Language toggle */
+    .lang-switch {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      width: fit-content;
+      margin-bottom: 28px;
+    }
+
+    .lang-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .lang-btn:hover { color: var(--text); }
+    .lang-btn--active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* ---- Date tag ---- */
+    .date-tag {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .date-tag i { margin-right: 4px; }
+
+    /* ---- News Grid ---- */
+    .feed {
+      max-width: 1000px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+      border-color: rgba(108, 99, 255, 0.2);
+    }
+
+    .card__img {
+      flex: 0 0 260px;
+      background: var(--surface-light);
+      overflow: hidden;
+    }
+
+    .card__img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+
+    .card:hover .card__img img {
+      transform: scale(1.04);
+    }
+
+    .card__body {
+      flex: 1;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card__tags {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tag--lang { background: rgba(108,99,255,0.15); color: var(--primary-light); }
+    .tag--cat  { background: rgba(255,101,132,0.12); color: var(--accent); }
+
+    .card__title {
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .card__title a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .card__title a:hover { text-decoration: underline; }
+
+    .card__excerpt {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 12px;
+    }
+
+    .card__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card__date {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .card__read {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary-light);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s;
+    }
+
+    .card__read:hover { gap: 8px; }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty i { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+    .empty p { font-size: 16px; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 768px) {
+      .topbar__nav { display: none; }
+      .card { flex-direction: column; }
+      .card__img { flex: 0 0 180px; }
+      .hero__greeting { font-size: 22px; }
+      .categories { gap: 8px; }
+      .cat-pill { padding: 8px 14px; font-size: 13px; }
+    }
+
+    /* Mobile nav toggle */
+    .mobile-nav {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-nav { display: block; }
+    }
+  </style>
 </head>
 <body>
 
-<nav class="navbar navbar-inverse">
-  <div class="container-fluid">
-    <div class="navbar-header">
-      <a class="navbar-brand" href="#">newsdecklive</a>
-    </div>
-<!--    <ul class="nav navbar-nav">-->
-<!--      <li class="active"><a href="english_login">Home</a></li>-->
-<!--      <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Language <span class="caret"></span></a>-->
-<!--        <ul class="dropdown-menu">-->
-<!--          <li class="active"><a href="english_login">English</a></li>-->
-<!--          <li><a href="malayalam_login">Malayalam</a></li>-->
-<!--&lt;!&ndash;          <li><a href="#">Hindi</a></li>&ndash;&gt;-->
-<!--        </ul>-->
-<!--      </li>-->
-<!--        <li class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#">Category <span class="caret"></span></a>-->
-<!--        <ul class="dropdown-menu">-->
-<!--          <li><a href="english_india">India</a></li>-->
-<!--          <li class="active"><a href="english_login">Trending</a></li>-->
-<!--          <li><a href="english_tech_login">Technology</a></li>-->
-<!--          <li><a href="english_sports_login">Sports</a></li>-->
-<!--          <li><a href="english_movie_login">Movies</a></li>-->
-<!--        </ul>-->
-<!--      </li>-->
-<!--      <li><a href="search">Search</a></li>-->
-<!--        <li>-->
-<!--        <input id="dob" name="dob" type="date">-->
-<!--        </li>-->
-<!--      <li><a href="english_india">India</a></li>-->
-<!--    </ul>-->
-    <ul class="nav navbar-nav navbar-right">
+<!-- Navbar -->
+<header class="topbar">
+  <a href="{% url 'scrape' %}" class="topbar__brand">
+    <div class="topbar__logo"><i class="fa-solid fa-newspaper"></i></div>
+    <span class="topbar__name">newsdecklive</span>
+  </a>
 
-      <li><a href="logout"><span class="glyphicon glyphicon-log-out"></span> Logout</a></li>
-    </ul>
+  <nav class="topbar__nav">
+    <a href="{% url 'english_login' %}" class="topbar__link">
+      <i class="fa-solid fa-house"></i> Home
+    </a>
+    <a href="{% url 'search' %}" class="topbar__link">
+      <i class="fa-solid fa-magnifying-glass"></i> Search
+    </a>
+  </nav>
+
+  <a href="{% url 'logout' %}" class="topbar__logout">
+    <i class="fa-solid fa-right-from-bracket"></i> Logout
+  </a>
+</header>
+
+<!-- Hero section -->
+<section class="hero">
+  <h1 class="hero__greeting">
+    Welcome back, <span>{{ request.session.username|default:"Reader" }}</span> 👋
+  </h1>
+  <p class="hero__sub">Here's your personalized news feed for today</p>
+
+  <!-- Language toggle -->
+  <div class="lang-switch">
+    <a href="{% url 'english_login' %}" class="lang-btn {% if user_language == '1' %}lang-btn--active{% endif %}">
+      🇬🇧 English
+    </a>
+    <a href="{% url 'malayalam_login' %}" class="lang-btn {% if user_language == '2' %}lang-btn--active{% endif %}">
+      🇮🇳 Malayalam
+    </a>
   </div>
-</nav>
 
-<div class="container">
-  <div class="row">
+  <!-- Category pills -->
+  <div class="categories" id="categoryPills">
+    <button class="cat-pill cat-pill--active" data-cat="all">
+      <i class="fa-solid fa-fire"></i> All News
+    </button>
+    <button class="cat-pill" data-cat="1">
+      <i class="fa-solid fa-bolt"></i> Trending
+    </button>
+    <button class="cat-pill" data-cat="2">
+      <i class="fa-solid fa-flag"></i> India
+    </button>
+    <button class="cat-pill" data-cat="3">
+      <i class="fa-solid fa-film"></i> Movies
+    </button>
+    <button class="cat-pill" data-cat="4">
+      <i class="fa-solid fa-microchip"></i> Technology
+    </button>
+    <button class="cat-pill" data-cat="5">
+      <i class="fa-solid fa-futbol"></i> Sports
+    </button>
+  </div>
 
-   {% for object in object_list %}
-   {% if object.language == user_language  %}
+  {% if date_today %}
+  <div class="date-tag">
+    <i class="fa-regular fa-calendar"></i> {{ date_today|date:"l, F j, Y" }}
+  </div>
+  {% endif %}
+</section>
 
-      {% if object.date == date_today  %}
+<!-- News Feed -->
+<div class="feed" id="newsFeed">
 
+  {% for object in object_list %}
+    {% if object.language == user_language and object.date == date_today %}
+    <div class="card" data-category="{{ object.category }}">
+      {% if object.image %}
+      <div class="card__img">
+        <img src="{{ object.image }}" alt="{{ object.title|truncatechars:50 }}" loading="lazy">
+      </div>
+      {% endif %}
 
-    <table>
-   <tr>
-     <td>
+      <div class="card__body">
+        <div class="card__tags">
+          <span class="tag tag--lang">
+            {% if object.language == '1' %}English{% elif object.language == '2' %}Malayalam{% endif %}
+          </span>
+          <span class="tag tag--cat">
+            {% if object.category == '1' %}Trending
+            {% elif object.category == '2' %}India
+            {% elif object.category == '3' %}Movies
+            {% elif object.category == '4' %}Technology
+            {% elif object.category == '5' %}Sports
+            {% endif %}
+          </span>
+        </div>
 
-    <img  src = "{{ object.image }}" >
-      </td>
-<td>
-    <h3 style="color:black;"><b>{{object.title}}</b></h3>
-      <p>{{object.content}}</p>
-    <a style="width=50%px" href="{{object.url}}">read more</a>
-</td>
-    </tr></table>
-<!--    <a style="width=50%px" href="{{object.url}}">read more</a>-->
-      <hr>
-   {% endif %}
-   {% endif %}
+        <h2 class="card__title">
+          <a href="{{ object.url }}" target="_blank" rel="noopener">{{ object.title }}</a>
+        </h2>
 
+        <p class="card__excerpt">
+          {% if object.content %}
+            {{ object.content|truncatechars:180 }}
+          {% else %}
+            Click below to read the full story.
+          {% endif %}
+        </p>
 
-
-
-<!--  <div  style="width:50%; float:right">-->
-<!--    <h5>{{object.title}}</h5>-->
-<!--</div>-->
-
-
-
-
-
-
-
+        <div class="card__footer">
+          <span class="card__date">
+            <i class="fa-regular fa-clock"></i> {{ object.date|date:"M j" }}
+          </span>
+          <a href="{{ object.url }}" target="_blank" rel="noopener" class="card__read">
+            Read more <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
   {% endfor %}
 
-
-
-<!--    <div class="col-6">-->
-<!-- {% for object in object_list %}-->
-
-<!--  <img class="card-img-top" src = "{{ object.image }}">-->
-
-
-<!--&lt;!&ndash;      <a href="{{object.url}}"><h5>{{object.title}}</h5></a>&ndash;&gt;-->
-
-
-<!--  {% endfor %}-->
-<!--    </div>-->
-  </div>
 </div>
+
+<div class="empty" id="emptyState" style="display:none;">
+  <i class="fa-solid fa-newspaper"></i>
+  <p>No news found for this category. Try another one!</p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const pills = document.querySelectorAll('.cat-pill');
+  const cards = document.querySelectorAll('.card');
+  const empty = document.getElementById('emptyState');
+
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      // Update active pill
+      pills.forEach(p => p.classList.remove('cat-pill--active'));
+      pill.classList.add('cat-pill--active');
+
+      const cat = pill.dataset.cat;
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        if (cat === 'all' || card.dataset.category === cat) {
+          card.style.display = '';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      // Show/hide empty state
+      empty.style.display = visibleCount === 0 ? '' : 'none';
+    });
+  });
+});
+</script>
 
 </body>
 </html>

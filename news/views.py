@@ -467,7 +467,7 @@ _ENGLISH_TEMPLATES = {
 }
 
 
-def _category_view(request, language, category_id, template, scraper_fn=None):
+def _category_view(request, language, category_id, template, scraper_fn=None, extra_context=None):
     """
     Generic category view: filter headlines by language/category/date,
     optionally trigger scraper_fn if no results exist yet.
@@ -484,6 +484,8 @@ def _category_view(request, language, category_id, template, scraper_fn=None):
 
     headlines = Headline.objects.filter(**filters).order_by("-id")
     context = {"object_list": headlines, "date_today": date_today}
+    if extra_context:
+        context.update(extra_context)
     return render(request, template, context)
 
 
@@ -495,8 +497,9 @@ def malayalam_login(request):
     """Malayalam home (Trending/all): all Malayalam for today."""
     return _category_view(
         request, language=2, category_id=None,
-        template=_MALAYALAM_TEMPLATES[None],
+        template="news/home_malayalam_new.html",
         scraper_fn=_scrape_all_malayalam,
+        extra_context={"active_cat": "trending", "category_label": "Trending"}
     )
 
 
@@ -504,8 +507,9 @@ def malayalam_india_login(request):
     """Malayalam India page: category = 2."""
     return _category_view(
         request, language=2, category_id=2,
-        template=_MALAYALAM_TEMPLATES[2],
+        template="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(2),
+        extra_context={"active_cat": "india", "category_label": "India"}
     )
 
 
@@ -513,8 +517,9 @@ def malayalam_movie_login(request):
     """Malayalam Movies page: category = 3."""
     return _category_view(
         request, language=2, category_id=3,
-        template=_MALAYALAM_TEMPLATES[3],
+        template="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(3),
+        extra_context={"active_cat": "movies", "category_label": "Movies"}
     )
 
 
@@ -522,8 +527,9 @@ def malayalam_tech_login(request):
     """Malayalam Tech page: category = 4."""
     return _category_view(
         request, language=2, category_id=4,
-        template=_MALAYALAM_TEMPLATES[4],
+        template="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(4),
+        extra_context={"active_cat": "tech", "category_label": "Technology"}
     )
 
 
@@ -531,8 +537,9 @@ def malayalam_sports_login(request):
     """Malayalam Sports page: category = 5."""
     return _category_view(
         request, language=2, category_id=5,
-        template=_MALAYALAM_TEMPLATES[5],
+        template="news/home_malayalam_new.html",
         scraper_fn=lambda: _scrape_malayalam_category(5),
+        extra_context={"active_cat": "sports", "category_label": "Sports"}
     )
 
 
@@ -665,7 +672,8 @@ def register(request):
 
     # Check for duplicate user via ORM instead of loading all users
     if Users.objects.filter(Q(name=name) | Q(email=email)).exists():
-        return render(request, "news/index_register.html")
+        context = {"login_error": "An account with that name or email already exists."}
+        return render(request, "news/index.html", context)
 
     Users.objects.create(
         name=name,
@@ -673,7 +681,8 @@ def register(request):
         password=password,
         language=language,
     )
-    return render(request, "news/index.html")
+    context = {"register_success": "Account created successfully! Please sign in."}
+    return render(request, "news/index.html", context)
 
 
 def logout(request):

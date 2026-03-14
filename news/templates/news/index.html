@@ -5,8 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>newsdecklive – Login & Signup</title>
+  <meta name="description" content="Sign in or create an account on newsdecklive — your English & Malayalam news aggregator.">
 
-  <!-- Login Page Styles -->
+  <!-- Styles -->
   <link rel="stylesheet" href="{% static 'css/login.css' %}">
 
   <!-- Icons -->
@@ -17,111 +18,178 @@
 
 <body>
 
-<div class="auth-wrapper">
+<div class="auth-wrapper" id="authWrapper">
 
-    <!-- Background shapes -->
-    <div class="background-shape"></div>
-    <div class="secondary-shape"></div>
+  <!-- Animated background -->
+  <div class="bg-orb bg-orb--1"></div>
+  <div class="bg-orb bg-orb--2"></div>
+  <div class="bg-orb bg-orb--3"></div>
 
-    <!-- =============================
-         LOGIN PANEL
-       ============================= -->
-    <div class="credentials-panel signin">
-        <h2 class="slide-element">Login</h2>
+  <!-- Floating particles (created by JS) -->
+  <div class="particles" id="particles"></div>
 
-        <form method="post" action="{% url 'login' %}">
-            {% csrf_token %}
+  <!-- Main container -->
+  <div class="auth-container">
 
-            <div class="field-wrapper slide-element">
-                <input type="text" name="username" required>
-                <label>Username</label>
-                <i class="fa-solid fa-user"></i>
-            </div>
+    <!-- Brand -->
+    <div class="brand">
+      <div class="brand__icon">
+        <i class="fa-solid fa-newspaper"></i>
+      </div>
+      <div class="brand__name">newsdecklive</div>
+      <div class="brand__tagline">English & Malayalam News Aggregator</div>
+    </div>
 
-            <div class="field-wrapper slide-element">
-                <input type="password" name="password" required>
-                <label>Password</label>
-                <i class="fa-solid fa-lock"></i>
-            </div>
+    <!-- Card flipper -->
+    <div class="card-flipper" id="cardFlipper">
 
-            <div class="field-wrapper slide-element">
-                <button type="submit" class="submit-button">Login</button>
-            </div>
+      <!-- ==================
+           FRONT — LOGIN
+           ================== -->
+      <div class="card-face card-face--front">
+        <div class="card-header">
+          <h1 class="card-header__title">Welcome Back</h1>
+          <p class="card-header__subtitle">Sign in to continue to your news feed</p>
+        </div>
 
-            <div class="switch-link slide-element">
-                <p>Don't have an account?<br>
-                    <a href="#" class="register-trigger">Sign Up</a>
-                </p>
-            </div>
+        {% if login_error %}
+        <div class="alert alert--error">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          {{ login_error }}
+        </div>
+        {% endif %}
+
+        {% if register_success %}
+        <div class="alert alert--success">
+          <i class="fa-solid fa-circle-check"></i>
+          {{ register_success }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}" id="loginForm">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <i class="fa-solid fa-user form-group__icon"></i>
+            <input type="text"
+                   name="username"
+                   id="login-username"
+                   class="form-group__input"
+                   placeholder="Username"
+                   autocomplete="username"
+                   required>
+          </div>
+
+          <div class="form-group">
+            <i class="fa-solid fa-lock form-group__icon"></i>
+            <input type="password"
+                   name="password"
+                   id="login-password"
+                   class="form-group__input"
+                   placeholder="Password"
+                   autocomplete="current-password"
+                   required>
+            <button type="button" class="form-group__toggle" data-target="login-password" aria-label="Toggle password visibility">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+
+          <button type="submit" class="btn-submit" id="loginBtn">
+            Sign In
+          </button>
         </form>
-    </div>
 
-    <!-- Login Welcome Panel -->
-    <div class="welcome-section signin">
-        <h2 class="slide-element">WELCOME BACK!</h2>
-    </div>
+        <div class="divider">or</div>
 
-    <!-- =============================
-         SIGNUP PANEL
-       ============================= -->
-    <div class="credentials-panel signup">
-        <h2 class="slide-element">Register</h2>
+        <div class="switch-prompt">
+          Don't have an account?
+          <button type="button" class="switch-prompt__link" id="showSignup">Create one</button>
+        </div>
+      </div>
 
-        <form method="post" action="{% url 'register' %}">
-            {% csrf_token %}
+      <!-- ==================
+           BACK — SIGNUP
+           ================== -->
+      <div class="card-face card-face--back">
+        <div class="card-header">
+          <h1 class="card-header__title">Create Account</h1>
+          <p class="card-header__subtitle">Join newsdecklive for personalized news</p>
+        </div>
 
-            <div class="field-wrapper slide-element">
-                <input type="text" name="name" required>
-                <label>Name</label>
-                <i class="fa-solid fa-user"></i>
-            </div>
+        <form method="post" action="{% url 'register' %}" id="signupForm">
+          {% csrf_token %}
 
-            <div class="field-wrapper slide-element">
-                <input type="email" name="email" required>
-                <label>Email</label>
-                <i class="fa-solid fa-envelope"></i>
-            </div>
+          <div class="form-group">
+            <i class="fa-solid fa-user form-group__icon"></i>
+            <input type="text"
+                   name="name"
+                   id="signup-name"
+                   class="form-group__input"
+                   placeholder="Full Name"
+                   autocomplete="name"
+                   required>
+          </div>
 
-            <div class="field-wrapper slide-element">
-                <input type="password" name="password" required>
-                <label>Password</label>
-                <i class="fa-solid fa-lock"></i>
-            </div>
+          <div class="form-group">
+            <i class="fa-solid fa-envelope form-group__icon"></i>
+            <input type="email"
+                   name="email"
+                   id="signup-email"
+                   class="form-group__input"
+                   placeholder="Email Address"
+                   autocomplete="email"
+                   required>
+          </div>
 
-            <div class="field-wrapper slide-element">
-                <select name="language" required
-                        style="width:100%;background:transparent;border:none;border-bottom:2px solid #aaa;color:#fff;padding:10px 0;">
-                    <option value="" disabled selected hidden>Select Language</option>
-                    <option value="1" style="color:black;">English</option>
-                    <option value="2" style="color:black;">Malayalam</option>
-                </select>
-                <label>Preferred Language</label>
-                <i class="fa-solid fa-language"></i>
-            </div>
+          <div class="form-group">
+            <i class="fa-solid fa-lock form-group__icon"></i>
+            <input type="password"
+                   name="password"
+                   id="signup-password"
+                   class="form-group__input"
+                   placeholder="Password"
+                   autocomplete="new-password"
+                   required>
+            <button type="button" class="form-group__toggle" data-target="signup-password" aria-label="Toggle password visibility">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
 
-            <div class="field-wrapper slide-element">
-                <button type="submit" class="submit-button">Register</button>
-            </div>
+          <div class="form-group">
+            <i class="fa-solid fa-language form-group__icon"></i>
+            <select name="language"
+                    id="signup-language"
+                    class="form-group__select"
+                    required>
+              <option value="" disabled selected hidden>Preferred Language</option>
+              <option value="1">English</option>
+              <option value="2">Malayalam</option>
+            </select>
+          </div>
 
-            <div class="switch-link slide-element">
-                <p>Already have an account?<br>
-                    <a href="#" class="login-trigger">Sign In</a>
-                </p>
-            </div>
+          <button type="submit" class="btn-submit" id="signupBtn">
+            Create Account
+          </button>
         </form>
+
+        <div class="divider">or</div>
+
+        <div class="switch-prompt">
+          Already have an account?
+          <button type="button" class="switch-prompt__link" id="showLogin">Sign In</button>
+        </div>
+      </div>
+
+    </div><!-- .card-flipper -->
+
+    <!-- Footer -->
+    <div class="auth-footer">
+      <span>© 2026 newsdecklive • All rights reserved</span>
     </div>
 
-    <!-- Signup Welcome Panel -->
-    <div class="welcome-section signup">
-        <h2 class="slide-element">WELCOME!</h2>
-    </div>
+  </div><!-- .auth-container -->
 
-</div>
-
-<!-- Footer -->
-<div class="footer">
-    <p>newsdecklive • English & Malayalam News Aggregator</p>
-</div>
+</div><!-- .auth-wrapper -->
 
 <!-- JavaScript -->
 <script src="{% static 'js/login.js' %}"></script>
