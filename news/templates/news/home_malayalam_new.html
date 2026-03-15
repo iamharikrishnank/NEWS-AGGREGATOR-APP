@@ -187,37 +187,6 @@
       margin-bottom: 24px;
     }
 
-    /* Language toggle */
-    .lang-switch {
-      display: flex;
-      gap: 6px;
-      background: var(--surface);
-      border-radius: 10px;
-      padding: 4px;
-      border: 1px solid var(--border);
-      width: fit-content;
-      margin-bottom: 28px;
-    }
-
-    .lang-btn {
-      padding: 8px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: transparent;
-      color: var(--text-muted);
-      text-decoration: none;
-    }
-
-    .lang-btn:hover { color: var(--text); }
-    .lang-btn--active {
-      background: var(--primary);
-      color: #fff;
-    }
-
     /* Category pills */
     .categories {
       display: flex;
@@ -430,16 +399,6 @@
     🇮🇳 <span>മലയാളം</span> വാർത്തകൾ
   </h1>
   <p class="hero__sub">{{ category_label|default:"Trending" }} news in Malayalam</p>
-
-  <!-- Language toggle -->
-  <div class="lang-switch">
-    <a href="{% url 'english_login' %}" class="lang-btn">
-      🇬🇧 English
-    </a>
-    <a href="{% url 'malayalam_login' %}" class="lang-btn lang-btn--active">
-      🇮🇳 Malayalam
-    </a>
-  </div>
 
   <!-- Category pills -->
   <div class="categories">

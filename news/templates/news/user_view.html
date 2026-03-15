@@ -187,37 +187,6 @@
 
     .cat-pill i { font-size: 14px; }
 
-    /* Language toggle */
-    .lang-switch {
-      display: flex;
-      gap: 6px;
-      background: var(--surface);
-      border-radius: 10px;
-      padding: 4px;
-      border: 1px solid var(--border);
-      width: fit-content;
-      margin-bottom: 28px;
-    }
-
-    .lang-btn {
-      padding: 8px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: transparent;
-      color: var(--text-muted);
-      text-decoration: none;
-    }
-
-    .lang-btn:hover { color: var(--text); }
-    .lang-btn--active {
-      background: var(--primary);
-      color: #fff;
-    }
-
     /* ---- Date tag ---- */
     .date-tag {
       font-size: 12px;
@@ -457,16 +426,6 @@
     Welcome back, <span>{{ request.session.username|default:"Reader" }}</span> 👋
   </h1>
   <p class="hero__sub">Here's your personalized news feed for today</p>
-
-  <!-- Language toggle -->
-  <div class="lang-switch">
-    <a href="{% url 'english_login' %}" class="lang-btn {% if user_language == '1' %}lang-btn--active{% endif %}">
-      🇬🇧 English
-    </a>
-    <a href="{% url 'malayalam_login' %}" class="lang-btn {% if user_language == '2' %}lang-btn--active{% endif %}">
-      🇮🇳 Malayalam
-    </a>
-  </div>
 
   <!-- Category pills -->
   <div class="categories" id="categoryPills">
